@@ -1,0 +1,10 @@
+{
+  "model": "v3.1-20260211",
+  "prompt": "A photorealistic athletic young adult man sitting on the floor as if riding down a water slide, torso upright and leaning slightly back, both legs stretched straight forward and slightly apart, bare feet with toes pointing up, arms relaxed at his sides with palms resting flat on the ground beside his hips. He wears red swim trunks with a white waistband stripe, bare wet skin with natural tan skin tone, realistic hands and feet, realistic human anatomy and proportions, full body, symmetric pose.",
+  "negative_prompt": "cartoon, stylized, toy, doll, anime, low poly, base, pedestal, stand, ground plane, chair, slide, clothing on upper body, shoes, multiple people, crossed legs, bent knees",
+  "texture": true,
+  "pbr": true,
+  "texture_quality": "detailed",
+  "geometry_quality": "detailed",
+  "face_limit": 40000
+}

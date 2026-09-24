@@ -1,0 +1,8 @@
+node_modules
+dist
+*.blend1
+.omc
+tools/shots
+# raw Tripo downloads (task.json holds signed URLs) and Blender debug renders
+tools/tripo/out
+tools/tripo/views

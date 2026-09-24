@@ -1,0 +1,10 @@
+{
+  "model": "v3.1-20260211",
+  "prompt": "A photorealistic megalodon, a colossal prehistoric great white shark, full body in a straight horizontal swimming pose seen from the side. Its jaws are gaping extremely wide open, revealing several rows of huge serrated white triangular teeth, pink-red gums and a dark cavernous throat. Heavily scarred slate-grey skin with dark blue-grey back and countershaded off-white belly, rough dermal texture, deep gill slits, black lifeless eyes, long broad pectoral fins, tall triangular dorsal fin, large crescent-shaped tail fin. Wet, menacing, highly detailed, realistic anatomy.",
+  "negative_prompt": "cartoon, stylized, toy, cute, low poly, base, pedestal, stand, ground, water, rocks, multiple animals, closed mouth, human",
+  "texture": true,
+  "pbr": true,
+  "texture_quality": "detailed",
+  "geometry_quality": "detailed",
+  "face_limit": 60000
+}

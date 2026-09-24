@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a1a2a" />
+    <title>深渊滑梯 · MEGALODON DROP</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cpath d=%27M6 54 Q30 42 38 6 Q44 36 60 54Z%27 fill=%27%2338bdf8%27/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <canvas id="view" tabindex="0" aria-label="游戏画面：第一人称高空滑梯"></canvas>
+
+    <div id="hud" class="hidden">
+      <div class="gauge alt" aria-label="海拔">
+        <div class="alt-bar"><div id="alt-fill"></div><div id="alt-mark"></div></div>
+        <div class="gauge-read">
+          <span class="label">海拔</span>
+          <span id="alt-val" class="big">0</span><span class="unit">m</span>
+        </div>
+      </div>
+      <div class="gauge spd" aria-label="速度">
+        <span class="label">速度</span>
+        <span id="spd-val" class="big">0</span><span class="unit">km/h</span>
+        <div class="sub"><span class="label">G</span> <span id="g-val">1.0</span> <span class="label">空中</span> <span id="air-val">0.0</span>s</div>
+      </div>
+      <div class="progress" aria-label="进度">
+        <div id="prog-track"><div id="prog-fill"></div><div id="prog-dot"></div></div>
+        <div id="prog-meta"><span id="cp-val">检查点 0/3</span><span id="time-val">00:00.0</span><span id="death-val"></span></div>
+      </div>
+      <div id="edge-l" class="edge left"></div>
+      <div id="edge-r" class="edge right"></div>
+      <div id="reticle" class="hidden"><div class="ring"></div><span id="reticle-txt"></span></div>
+      <div id="msg" role="status" aria-live="polite"></div>
+      <div id="sub-msg" aria-live="polite"></div>
+      <div id="hint">A/D ← → 转向 · W 俯身加速 · S 张开减速 · 鼠标 环顾 · Esc 暂停</div>
+    </div>
+
+    <div id="jaws" class="hidden" aria-hidden="true">
+      <svg class="jaw top" viewBox="0 0 1000 320" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gum-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d0203" /><stop offset="1" stop-color="#5a1216" /></linearGradient>
+          <linearGradient id="tooth-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0.55" stop-color="#b9a98c" /><stop offset="1" stop-color="#f4eddc" /></linearGradient>
+        </defs>
+        <path class="teeth" fill="url(#tooth-t)" d="M-40 198 Q-29 249 -6 291 Q12 249 24 198Z M26 198 Q38 252 55 297 Q82 252 94 198Z M99 198 Q110 254 123 299 Q147 254 158 198Z M160 198 Q172 260 188 311 Q214 260 226 198Z M229 198 Q242 262 265 314 Q286 262 298 198Z M303 198 Q316 247 345 287 Q365 247 378 198Z M382 198 Q393 248 410 290 Q432 248 443 198Z M450 198 Q461 256 482 303 Q500 256 511 198Z M515 198 Q527 247 544 288 Q571 247 583 198Z M586 198 Q599 253 619 299 Q644 253 656 198Z M662 198 Q674 251 699 295 Q716 251 728 198Z M734 198 Q746 256 766 303 Q785 256 797 198Z M804 198 Q817 251 845 295 Q862 251 875 198Z M878 198 Q890 259 906 309 Q932 259 943 198Z M948 198 Q959 257 981 306 Q996 257 1007 198Z" />
+        <path class="gum" fill="url(#gum-t)" d="M-20 0 H1020 V206 Q975 200 950 206 Q925 214 900 206 Q875 200 850 206 Q825 214 800 206 Q775 200 750 206 Q725 214 700 206 Q675 200 650 206 Q625 214 600 206 Q575 200 550 206 Q525 214 500 206 Q475 200 450 206 Q425 214 400 206 Q375 200 350 206 Q325 214 300 206 Q275 200 250 206 Q225 214 200 206 Q175 200 150 206 Q125 214 100 206 Q75 200 50 206 Q25 214 0 206 Q-25 200 -50 206 Z" />
+      </svg>
+      <svg class="jaw bottom" viewBox="0 0 1000 320" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gum-b" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#0d0203" /><stop offset="1" stop-color="#5a1216" /></linearGradient>
+          <linearGradient id="tooth-b" x1="0" y1="1" x2="0" y2="0"><stop offset="0.55" stop-color="#b9a98c" /><stop offset="1" stop-color="#f4eddc" /></linearGradient>
+        </defs>
+        <path class="teeth" fill="url(#tooth-b)" d="M-6 122 Q7 68 33 25 Q54 68 68 122Z M73 122 Q86 66 112 20 Q129 66 142 122Z M149 122 Q161 63 177 14 Q204 63 216 122Z M222 122 Q235 57 261 4 Q279 57 292 122Z M296 122 Q307 63 322 14 Q349 63 360 122Z M365 122 Q376 72 390 30 Q415 72 426 122Z M433 122 Q444 70 462 27 Q482 70 493 122Z M500 122 Q511 66 531 21 Q549 66 560 122Z M567 122 Q580 59 601 8 Q627 59 640 122Z M644 122 Q656 59 682 7 Q697 59 709 122Z M712 122 Q723 70 739 27 Q762 70 773 122Z M778 122 Q790 69 806 26 Q834 69 846 122Z M851 122 Q863 64 889 17 Q904 64 916 122Z M922 122 Q934 63 958 15 Q977 63 989 122Z M991 122 Q1005 61 1033 11 Q1052 61 1066 122Z" />
+        <path class="gum" fill="url(#gum-b)" d="M-20 320 H1020 V114 Q975 120 950 114 Q925 106 900 114 Q875 120 850 114 Q825 106 800 114 Q775 120 750 114 Q725 106 700 114 Q675 120 650 114 Q625 106 600 114 Q575 120 550 114 Q525 106 500 114 Q475 120 450 114 Q425 106 400 114 Q375 120 350 114 Q325 106 300 114 Q275 120 250 114 Q225 106 200 114 Q175 120 150 114 Q125 106 100 114 Q75 120 50 114 Q25 106 0 114 Q-25 120 -50 114 Z" />
+      </svg>
+    </div>
+
+    <div id="fade" aria-hidden="true"></div>
+
+    <div id="loading" class="screen" aria-busy="true" aria-live="polite">
+      <div class="card">
+        <h1 class="title">深渊滑梯</h1>
+        <p class="tagline">MEGALODON DROP</p>
+        <div class="loadbar"><div id="load-fill"></div></div>
+        <p id="load-txt">正在生成世界…</p>
+      </div>
+    </div>
+
+    <div id="screen-start" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="start-title">
+      <div class="card">
+        <h1 id="start-title" class="title">深渊滑梯</h1>
+        <p class="tagline">MEGALODON DROP · 海拔 1100 米</p>
+        <p class="story">从云端之上的跳台出发，沿着开放式滑梯一路冲向大海。滑梯在半空断开数次，你必须在自由落体中调整姿态，落进下方的下一段滑梯。<strong>海里的巨齿鲨一直在等你失手。</strong></p>
+        <ul class="keys">
+          <li><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> 转向（贴着墙太高会飞出去）</li>
+          <li><kbd>W</kbd> 俯身加速 · <kbd>S</kbd> 张开四肢减速</li>
+          <li>空中同样可以转向、前冲或减速，瞄准 <span class="green">绿色落点</span></li>
+          <li><kbd>鼠标</kbd> 环顾 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音 · 支持手柄</li>
+        </ul>
+        <div class="buttons">
+          <button id="btn-start" class="primary" aria-label="开始游戏">开始滑行 <kbd>Enter</kbd></button>
+        </div>
+        <p id="start-note" class="note"></p>
+      </div>
+    </div>
+
+    <div id="screen-pause" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+      <div class="card small">
+        <h2 id="pause-title">已暂停</h2>
+        <div class="buttons">
+          <button id="btn-resume" class="primary" aria-label="继续游戏">继续 <kbd>Esc</kbd></button>
+          <button id="btn-restart-p" aria-label="从检查点重新开始">回到检查点 <kbd>R</kbd></button>
+          <button id="btn-mute" aria-label="切换静音" aria-pressed="false">声音：开</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-over" class="screen hidden over" role="alertdialog" aria-modal="true" aria-labelledby="over-title" aria-describedby="over-desc">
+      <div class="card">
+        <h1 id="over-title" class="title red">GAME OVER</h1>
+        <p id="over-desc" class="tagline">你被巨齿鲨一口吞下</p>
+        <p id="over-stats" class="stats"></p>
+        <div class="buttons">
+          <button id="btn-respawn" class="primary" aria-label="从最近的检查点复活">从检查点复活 <kbd>R</kbd></button>
+          <button id="btn-restart" aria-label="从起点重新开始">从头开始</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-finish" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="finish-title">
+      <div class="card">
+        <h1 id="finish-title" class="title gold">安全抵达!</h1>
+        <p class="tagline">你从 1100 米高空一路滑进了终点码头</p>
+        <p id="finish-stats" class="stats"></p>
+        <div class="buttons">
+          <button id="btn-again" class="primary" aria-label="再玩一次">再来一次 <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </div>
+
+    <noscript>本游戏需要启用 JavaScript 与 WebGL。</noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
