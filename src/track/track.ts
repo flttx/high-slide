@@ -113,6 +113,12 @@ function buildSegment(index: number, def: SegmentDef, pose: Pose, vIn: number, i
   }
   const count = pts.length;
   const length = (count - 1) * DS;
+  const narrow = def.narrow;
+  if (narrow && (!Number.isFinite(narrow.start + narrow.end + narrow.radius)
+    || narrow.radius <= PHYS.bodyOffset || narrow.radius >= def.radius
+    || narrow.start < CATCH_LEN + 30 || narrow.end - narrow.start < 120 || narrow.end > length)) {
+    throw new Error(`Invalid narrow section in segment ${index}`);
+  }
   const seg: Segment = {
     index,
     count,
@@ -140,7 +146,11 @@ function buildSegment(index: number, def: SegmentDef, pose: Pose, vIn: number, i
     const span = (Math.min(count - 1, i + 1) - Math.max(0, i - 1)) * DS;
     K.push(b.clone().sub(a).multiplyScalar(1 / span));
     set3(seg.curv, i, K[i]);
-    const R = def.radius;
+    const s = i * DS;
+    const squeeze = narrow
+      ? smoothstep(narrow.start, narrow.start + 60, s) * (1 - smoothstep(narrow.end - 60, narrow.end, s))
+      : 0;
+    const R = lerp(def.radius, narrow?.radius ?? def.radius, squeeze);
     seg.radius[i] = isCatch && def.catchRadius
       ? lerp(def.catchRadius, R, smoothstep(CATCH_LEN * 0.7, CATCH_LEN + 30, i * DS))
       : R;

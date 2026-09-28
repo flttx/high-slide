@@ -73,7 +73,7 @@ export async function buildWorld(
   progress: (p: number, text: string) => Promise<void>,
 ): Promise<World> {
   const scene = new THREE.Scene();
-  await progress(0.08, '正在铺设 1100 米高空滑梯…');
+  await progress(0.08, '正在铺设 1680 米高空滑梯…');
   const track = new Track(LEVEL);
   await progress(0.22, '正在生成天空与海洋…');
   const env = buildEnvironment(renderer, scene);
@@ -145,6 +145,7 @@ export class Game {
   private predAt = 0;
   private nextPredict = 0;
   private nextDoomCheck = 0;
+  private doomGrace = 0.2;
   private readonly cmd: RiderInput = { steer: 0, throttle: 0 };
   private readonly biteOffset = new THREE.Vector3();
   private followMouth = false;
@@ -455,7 +456,7 @@ export class Game {
       }
     }
     // cheap test first: only if the current controls end in the sea, try every strategy
-    if (!this.doomed && r.airTime > 0.2 && this.pred.kind === 'sea' && this.time >= this.nextDoomCheck) {
+    if (!this.doomed && r.vel.y < 0 && r.airTime > this.doomGrace && this.pred.kind === 'sea' && this.time >= this.nextDoomCheck) {
       this.nextDoomCheck = this.time + 0.2;
       if (r.isDoomed(this.scratch)) this.startDoom();
     }
@@ -574,6 +575,9 @@ export class Game {
       this.audio.whoosh();
       this.takeoffY = r.pos.y;
       this.nextPredict = 0;
+      // A designed gap is a jump, even when the current controls predict a miss.
+      // Use flight time so pausing cannot consume the authored jump window.
+      this.doomGrace = e.reason === 'gap' ? this.track.segments[e.seg].gap?.time ?? 0.2 : 0.2;
       this.nextDoomCheck = this.time + 0.2;
       if (e.reason === 'gap') {
         this.gapsJumped++;
@@ -725,7 +729,7 @@ export class Game {
           x: clamp((p.x * 0.5 + 0.5) * W, 40, W - 40),
           y: clamp((-p.y * 0.5 + 0.5) * H, 40, H - 40),
           kind: land ? 'land' : 'sea',
-          text: land ? `落点 ${left.toFixed(1)}s` : this.doomed ? '鲨鱼！' : `坠海 ${left.toFixed(1)}s`,
+          text: land ? `落点 ${left.toFixed(1)}s` : this.doomed ? '鲨鱼！' : '调整方向',
         });
       } else this.hud.setReticle(null);
     } else this.hud.setReticle(null);

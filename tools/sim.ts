@@ -3,12 +3,38 @@
  * with several play styles. Run: npm run sim
  */
 import { Vector3 } from 'three';
+import { PHYS } from '../src/core/config.ts';
 import { LEVEL } from '../src/track/level.ts';
-import { Track, get3 } from '../src/track/track.ts';
+import { Track, get3, makeFrame } from '../src/track/track.ts';
 import { Rider, makePrediction } from '../src/physics/rider.ts';
 import { botInput } from '../src/game/bot.ts';
 
 const track = new Track(LEVEL);
+function assert(condition: boolean, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+// Width must taper continuously and the landing collision must use the visible edge.
+for (const seg of track.segments) {
+  const def = LEVEL.segments[seg.index];
+  if (!def.narrow) continue;
+  const { start, end, radius } = def.narrow;
+  assert(seg.radius[start] === def.radius && seg.radius[end] === def.radius, 'Narrow section must restore full width');
+  assert(Math.abs(Math.min(...seg.radius) - radius) < 1e-10, 'Narrow section must reach its designed width');
+  for (let i = start + 1; i <= end; i++) {
+    assert(Math.abs(seg.radius[i] - seg.radius[i - 1]) < 0.09, 'Abrupt width transition');
+  }
+  const f = track.frameAt(seg.index, (start + end) / 2, makeFrame());
+  const halfWidth = f.r * Math.sin(PHYS.lipAngle);
+  for (const side of [-1, 1]) for (const inside of [true, false]) {
+    const x = side * (halfWidth + (inside ? -0.15 : 0.15));
+    const y = f.r - Math.sqrt(f.r * f.r - x * x) + PHYS.bodyOffset;
+    const prev = f.p.clone().addScaledVector(f.b, x).addScaledVector(f.n, y + 0.5);
+    const cur = f.p.clone().addScaledVector(f.b, x).addScaledVector(f.n, y - 0.1);
+    const hit = { seg: -1, s: 0, x: 0 };
+    assert(track.checkLanding(prev, cur, hit) === inside, `seg${seg.index}: narrow edge collision`);
+    if (inside) assert(hit.seg === seg.index, 'Landing matched the wrong segment');
+  }
+}
 let total = 0;
 for (const seg of track.segments) {
   total += seg.length;
@@ -53,6 +79,7 @@ interface Style {
   name: string;
   throttle: number;
   steerNoise: number;
+  airControl?: boolean;
 }
 const styles: Style[] = [
   { name: 'neutral', throttle: 0, steerNoise: 0 },
@@ -60,6 +87,7 @@ const styles: Style[] = [
   { name: 'brake-ish', throttle: -0.4, steerNoise: 0 },
   { name: 'wobbly', throttle: 0.3, steerNoise: 0.5 },
   { name: 'hands-off', throttle: 0, steerNoise: -1 },
+  { name: 'unassisted', throttle: 0, steerNoise: -1, airControl: false },
 ];
 const pred = makePrediction();
 for (const st of styles) {
@@ -69,6 +97,7 @@ for (const st of styles) {
   let t = 0;
   let vmax = 0, gmin = 9, gmax = -9, thmax = 0;
   const log: string[] = [];
+  const landings: number[] = [];
   let seed = 1;
   while (t < 400 && !r.finished && (r.mode === 'track' || r.mode === 'air')) {
     const inp = botInput(r, track, pred, t);
@@ -77,12 +106,18 @@ for (const st of styles) {
     if (r.mode === 'track') {
       inp.steer = st.steerNoise < 0 ? 0 : Math.max(-1, Math.min(1, inp.steer + noise));
       inp.throttle = st.throttle;
+    } else if (st.airControl === false) {
+      inp.steer = 0;
+      inp.throttle = st.throttle;
     }
     r.step(dt, inp);
     t += dt;
     for (const e of r.events) {
       if (e.type === 'takeoff') log.push(`${t.toFixed(1)}s takeoff(${e.reason}) seg${e.seg} v=${(r.vel.length() * 3.6).toFixed(0)}`);
-      if (e.type === 'land') log.push(`${t.toFixed(1)}s land seg${e.seg} s=${r.s.toFixed(0)} impact=${e.impact.toFixed(1)}`);
+      if (e.type === 'land') {
+        log.push(`${t.toFixed(1)}s land seg${e.seg} s=${r.s.toFixed(0)} impact=${e.impact.toFixed(1)}`);
+        landings.push(e.seg);
+      }
       if (e.type === 'sea') log.push(`${t.toFixed(1)}s SEA at y=${r.pos.y.toFixed(1)}`);
     }
     r.events.length = 0;
@@ -97,4 +132,10 @@ for (const st of styles) {
   }
   console.log(`\n[${st.name}] result=${r.mode} t=${t.toFixed(1)}s seg=${r.seg} vmax=${(vmax * 3.6).toFixed(0)}km/h G ${gmin.toFixed(2)}..${gmax.toFixed(2)} thetaMax=${((thmax * 180) / Math.PI).toFixed(0)}°`);
   console.log('  ' + log.join('\n  '));
+  const shouldFinish = st.name !== 'brake-ish' && st.airControl !== false;
+  if (r.finished !== shouldFinish) throw new Error(`${st.name}: unexpected course outcome`);
+  // The normal route must reach every landing; other styles may take valid shortcuts.
+  if (st.name === 'neutral' && landings.join(',') !== track.segments.slice(1).map(s => s.index).join(',')) {
+    throw new Error('Normal route skipped a landing or failed to reach it');
+  }
 }

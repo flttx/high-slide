@@ -22,6 +22,8 @@ export interface GapDef {
 export interface SegmentDef {
   radius: number;
   catchRadius?: number;
+  /** Narrow section measured from segment start, with 60 m entry/exit tapers. */
+  narrow?: { start: number; end: number; radius: number };
   pieces: PieceDef[];
   gap?: GapDef;
 }
@@ -59,41 +61,63 @@ export const LEVEL: LevelDef = {
       gap: { time: 1.9, lateral: 0, drop: 2.5 },
     },
     {
-      // 1 — S-bends then a descending helix, second jump with a sideways offset
+      // 1 — S-bends into a right-offset jump before the helix
       radius: 4.5,
       catchRadius: 8.5,
+      narrow: { start: 120, end: 410, radius: 1.9 },
       pieces: [
         { len: 40, pitch: -18 },
         { len: 180, turn: -55, pitch: -18 },
         { len: 180, turn: 60, pitch: -15 },
-        { len: 60, pitch: -22 },
-        { len: 660, turn: 290, pitch: -12 },
-        { len: 50, pitch: -14 },
-        { len: 80, pitch: 6 },
+        { len: 60, pitch: 5 },
       ],
       gap: { time: 2.1, lateral: 7, drop: 2.5 },
     },
     {
-      // 2 — dive through the cloud deck, fast rollers, big offset jump
+      // 2 — descending helix, then reverse the air correction to the left
+      radius: 4.5,
+      catchRadius: 8.5,
+      narrow: { start: 220, end: 620, radius: 2.3 },
+      pieces: [
+        { len: 50, pitch: -22 },
+        { len: 560, turn: 230, pitch: -12 },
+        { len: 50, pitch: -14 },
+        { len: 80, pitch: 6 },
+      ],
+      gap: { time: 2.2, lateral: -9, drop: 2.5 },
+    },
+    {
+      // 3 — dive through the cloud deck and jump right out of the sweeping turn
       radius: 4.5,
       catchRadius: 8.5,
       pieces: [
         { len: 60, pitch: -24 },
         { len: 140, pitch: -46 },
         { len: 120, pitch: -14 },
-        { len: 220, turn: 60, pitch: -14 },
+        { len: 160, turn: 60, pitch: -14 },
+        { len: 60, pitch: 6 },
+      ],
+      gap: { time: 2.0, lateral: 8, drop: 2.5 },
+    },
+    {
+      // 4 — fast rollers into the widest left-offset jump
+      radius: 4.5,
+      catchRadius: 8.5,
+      narrow: { start: 130, end: 420, radius: 1.5 },
+      pieces: [
         { len: 70, pitch: -22 },
         { len: 90, pitch: -9 },
         { len: 220, turn: -75, pitch: -13 },
         { len: 50, pitch: -12 },
         { len: 80, pitch: 7 },
       ],
-      gap: { time: 2.4, lateral: -9, drop: 2.5 },
+      gap: { time: 2.4, lateral: -11, drop: 2.5 },
     },
     {
-      // 3 — technical section, quick hop
+      // 5 — technical section, quick right hop
       radius: 4.5,
       catchRadius: 8.5,
+      narrow: { start: 140, end: 460, radius: 1.25 },
       pieces: [
         { len: 40, pitch: -18 },
         { len: 200, turn: 80, pitch: -16 },
@@ -101,33 +125,43 @@ export const LEVEL: LevelDef = {
         { len: 50, pitch: -12 },
         { len: 70, pitch: 5 },
       ],
-      gap: { time: 1.7, lateral: 5, drop: 2.5 },
+      gap: { time: 1.9, lateral: 7, drop: 2.5 },
     },
     {
-      // 4 — the big dive down to the shark water, last jump
+      // 6 — the big dive down to shark water, followed by a left jump
       radius: 4.5,
       catchRadius: 8.5,
       pieces: [
         { len: 70, pitch: -24 },
         { len: 190, pitch: -50 },
         { len: 150, pitch: -12 },
-        { len: 220, turn: -80, pitch: -9 },
+        { len: 160, turn: -80, pitch: -9 },
+        { len: 60, pitch: 6 },
+      ],
+      gap: { time: 2.0, lateral: -8, drop: 2.5 },
+    },
+    {
+      // 7 — short recovery before the final right-offset jump
+      radius: 4.5,
+      catchRadius: 8.5,
+      narrow: { start: 110, end: 340, radius: 1.35 },
+      pieces: [
         { len: 70, pitch: -12 },
         { len: 200, turn: 70, pitch: -7 },
         { len: 50, pitch: -7 },
         { len: 70, pitch: 7 },
       ],
-      gap: { time: 2.2, lateral: -6, drop: 2.5 },
+      gap: { time: 2.3, lateral: 9, drop: 2.5 },
     },
     {
-      // 5 — skimming the waves to the finish pier
+      // 8 — ease the final descent to keep the finish pier clear of the water
       radius: 4.5,
       catchRadius: 8.5,
       pieces: [
-        { len: 40, pitch: -11 },
-        { len: 180, turn: 45, pitch: -8 },
-        { len: 180, turn: -30, pitch: -5 },
-        { len: 110, pitch: -2 },
+        { len: 40, pitch: -9 },
+        { len: 180, turn: 45, pitch: -6 },
+        { len: 180, turn: -30, pitch: -3 },
+        { len: 110, pitch: -1 },
         { len: 110, pitch: 1 },
         { len: 60, pitch: 0 },
       ],
@@ -135,8 +169,8 @@ export const LEVEL: LevelDef = {
   ],
   checkpoints: [
     { seg: 0, s: 4 },
-    { seg: 1, s: 70 },
-    { seg: 2, s: 60 },
+    { seg: 2, s: 70 },
     { seg: 4, s: 60 },
+    { seg: 6, s: 60 },
   ],
 };

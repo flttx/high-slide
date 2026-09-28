@@ -21,6 +21,8 @@ interface Shark {
   /** fallback rig: lower jaw pivot */
   jawPivot: THREE.Object3D | null;
   mouth: THREE.Object3D;
+  /** Open gape points below the nose axis; generated GLB anatomy is in rig_megalodon.py. */
+  mouthTilt: number;
   state: SharkState;
   pos: THREE.Vector3;
   yaw: number;
@@ -45,6 +47,7 @@ export interface HuntInfo {
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _mouthOffset = new THREE.Vector3();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 
 function tintUnderwater(mat: THREE.Material): void {
@@ -112,6 +115,7 @@ export class Sharks {
   readonly group = new THREE.Group();
   readonly sharks: Shark[] = [];
   private hunter: Shark | null = null;
+  private readonly mouthTarget = new THREE.Vector3();
   private readonly rand = rng(31);
   private readonly centre: THREE.Vector3;
   private readonly spread: number;
@@ -211,6 +215,7 @@ export class Sharks {
       jaw,
       jawPivot,
       mouth,
+      mouthTilt: template ? THREE.MathUtils.degToRad(25.1) : 0,
       state: 'idle',
       pos: new THREE.Vector3(),
       yaw: 0,
@@ -328,6 +333,12 @@ export class Sharks {
       if (sh.jaw) sh.jaw.time = sh.jawOpen * sh.jaw.getClip().duration * 0.999;
       if (sh.jawPivot) sh.jawPivot.rotation.x = sh.jawOpen * 0.9;
       sh.mixer?.update(dt);
+      if (sh.state === 'hunt' && hunt && sh.riseFrom !== null) {
+        // Head animation also moves MouthPoint. Anchor the current animated mouth, not last frame's.
+        sh.mouth.getWorldPosition(_v);
+        sh.pos.add(this.mouthTarget).sub(_v);
+        sh.root.position.copy(sh.pos);
+      }
     }
   }
 
@@ -386,10 +397,10 @@ export class Sharks {
       sh.jawOpen += ((waiting ? 0.8 : 0.25) - sh.jawOpen) * damp(waiting ? 3 : 2, dt);
       return;
     }
-    // rise: nose up, jaws wide, mouth arrives at the surface together with the rider
+    // Rise with the open mouth facing the incoming rider.
     const local = this.mouthLocal(sh, _w);
     _e.set(-sh.pitch, sh.yaw, sh.roll, 'YXZ');
-    const off = local.applyEuler(_e);
+    const off = _mouthOffset.copy(local).applyEuler(_e);
     const cur = _v.copy(sh.pos).add(off);
     if (sh.riseFrom === null) {
       sh.riseFrom = Math.min(cur.y, 0);
@@ -397,14 +408,23 @@ export class Sharks {
     }
     const k = clamp(1 - T / sh.riseT0, 0, 1);
     const e = smoothstep(0, 1, k);
-    const pitchT = lerp(0.45, 1.3, smoothstep(0, 0.55, k));
+    const dx = hunt.rider.x - cur.x, dz = hunt.rider.z - cur.z;
+    const yawT = Math.atan2(dx, dz);
+    const yawDelta = THREE.MathUtils.euclideanModulo(yawT - sh.yaw + Math.PI, Math.PI * 2) - Math.PI;
+    sh.yaw += yawDelta * damp(5, dt);
+    // Aim the open gape at the incoming rider; pointing the nose upward leaves it over the entry.
+    const entryPitch = Math.atan2(Math.max(0.1, hunt.rider.y - cur.y), Math.hypot(dx, dz)) + sh.mouthTilt;
+    const pitchT = lerp(0.45, entryPitch, smoothstep(0, 0.55, k));
     sh.pitch += (pitchT - sh.pitch) * damp(5, dt);
     sh.roll += (0 - sh.roll) * damp(4, dt);
     const kk = damp(3 + k * 12, dt);
     cur.x = lerp(cur.x, P.x, kk);
     cur.z = lerp(cur.z, P.z, kk);
     cur.y = lerp(sh.riseFrom, 3.2, e);
+    this.mouthTarget.copy(cur);
     // solve for the body pivot so that the (rotated) mouth lands on the target
+    _e.set(-sh.pitch, sh.yaw, sh.roll, 'YXZ');
+    off.copy(local).applyEuler(_e);
     sh.pos.copy(cur).sub(off);
     sh.jawOpen += (1 - sh.jawOpen) * damp(4 + k * 6, dt);
   }
