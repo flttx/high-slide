@@ -498,6 +498,18 @@ button {
   transition: transform 0.12s, background 0.2s, box-shadow 0.2s;
 }
 
+.language-toggle {
+  position: fixed;
+  z-index: 50;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  padding: 9px 16px;
+  font-size: 14px;
+  background: rgba(5, 20, 36, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 button:hover {
   background: rgba(255, 255, 255, 0.16);
 }

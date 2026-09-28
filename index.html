@@ -1,39 +1,40 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0a1a2a" />
-    <title>深渊滑梯 · MEGALODON DROP</title>
+    <title>MEGALODON DROP</title>
     <link rel="stylesheet" href="/src/style.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Cpath d=%27M6 54 Q30 42 38 6 Q44 36 60 54Z%27 fill=%27%2338bdf8%27/%3E%3C/svg%3E" />
   </head>
   <body>
-    <canvas id="view" tabindex="0" aria-label="游戏画面：第一人称高空滑梯"></canvas>
+    <canvas id="view" tabindex="0" aria-label="Game view: first-person high-altitude slide" data-i18n-aria-label="canvasLabel"></canvas>
+    <button id="language-toggle" class="language-toggle" type="button" data-language-toggle aria-label="Switch language to Chinese">中文</button>
 
     <div id="hud" class="hidden">
-      <div class="gauge alt" aria-label="海拔">
+      <div class="gauge alt" aria-label="Altitude" data-i18n-aria-label="altitude">
         <div class="alt-bar"><div id="alt-fill"></div><div id="alt-mark"></div></div>
         <div class="gauge-read">
-          <span class="label">海拔</span>
+          <span class="label" data-i18n="altitude">Altitude</span>
           <span id="alt-val" class="big">0</span><span class="unit">m</span>
         </div>
       </div>
-      <div class="gauge spd" aria-label="速度">
-        <span class="label">速度</span>
+      <div class="gauge spd" aria-label="Speed" data-i18n-aria-label="speed">
+        <span class="label" data-i18n="speed">Speed</span>
         <span id="spd-val" class="big">0</span><span class="unit">km/h</span>
-        <div class="sub"><span class="label">G</span> <span id="g-val">1.0</span> <span class="label">空中</span> <span id="air-val">0.0</span>s</div>
+        <div class="sub"><span class="label">G</span> <span id="g-val">1.0</span> <span class="label" data-i18n="airborne">Airborne</span> <span id="air-val">0.0</span>s</div>
       </div>
-      <div class="progress" aria-label="进度">
+      <div class="progress" aria-label="Progress" data-i18n-aria-label="progress">
         <div id="prog-track"><div id="prog-fill"></div><div id="prog-dot"></div></div>
-        <div id="prog-meta"><span id="cp-val">检查点 0/3</span><span id="time-val">00:00.0</span><span id="death-val"></span></div>
+        <div id="prog-meta"><span id="cp-val">Checkpoint 0/3</span><span id="time-val">00:00.0</span><span id="death-val"></span></div>
       </div>
       <div id="edge-l" class="edge left"></div>
       <div id="edge-r" class="edge right"></div>
       <div id="reticle" class="hidden"><div class="ring"></div><span id="reticle-txt"></span></div>
       <div id="msg" role="status" aria-live="polite"></div>
       <div id="sub-msg" aria-live="polite"></div>
-      <div id="hint">A/D ← → 转向 · W 俯身加速 · S 张开减速 · 鼠标 环顾 · Esc 暂停</div>
+      <div id="hint" data-i18n="controlsHint">A/D or ←/→ steer · W tuck to accelerate · S spread out to brake · Mouse look · Esc pause</div>
     </div>
 
     <div id="jaws" class="hidden" aria-hidden="true">
@@ -59,26 +60,26 @@
 
     <div id="loading" class="screen" aria-busy="true" aria-live="polite">
       <div class="card">
-        <h1 class="title">深渊滑梯</h1>
+        <h1 class="title" data-i18n="gameName">MEGALODON DROP</h1>
         <p class="tagline">MEGALODON DROP</p>
         <div class="loadbar"><div id="load-fill"></div></div>
-        <p id="load-txt">正在生成世界…</p>
+        <p id="load-txt" data-i18n="loading">Building the world…</p>
       </div>
     </div>
 
     <div id="screen-start" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="start-title">
       <div class="card">
-        <h1 id="start-title" class="title">深渊滑梯</h1>
-        <p class="tagline">MEGALODON DROP · 海拔 1680 米</p>
-        <p class="story">从云端之上的跳台出发，沿着开放式滑梯一路冲向大海。滑梯在半空断开数次，你必须在自由落体中调整姿态，落进下方的下一段滑梯。<strong>海里的巨齿鲨一直在等你失手。</strong></p>
+        <h1 id="start-title" class="title" data-i18n="gameName">MEGALODON DROP</h1>
+        <p class="tagline" data-i18n="startTagline">Race the gaps. Evade the megalodon. · 1,680 m above sea level</p>
+        <p class="story"><span data-i18n="story">Launch from a platform above the clouds and race down an open slide toward the ocean. The slide breaks apart several times. Adjust your position in free fall and land on the next section below. </span><strong data-i18n="storyEmphasis">A megalodon is waiting for you to make a mistake.</strong></p>
         <ul class="keys">
-          <li><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> 转向（贴着墙太高会飞出去）</li>
-          <li><kbd>W</kbd> 俯身加速 · <kbd>S</kbd> 张开四肢减速</li>
-          <li>空中同样可以转向、前冲或减速，瞄准 <span class="green">绿色落点</span></li>
-          <li><kbd>鼠标</kbd> 环顾 · <kbd>Esc</kbd> 暂停 · <kbd>M</kbd> 静音 · 支持手柄</li>
+          <li><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd> <span data-i18n="steerHelp">Steer (hugging the wall too high can throw you off)</span></li>
+          <li><kbd>W</kbd> <span data-i18n="speedHelp">Tuck to accelerate</span> · <kbd>S</kbd> <span data-i18n="speedHelpS">Spread out to brake</span></li>
+          <li><span data-i18n="airHelp">You can steer, accelerate, and brake in the air. Aim for the </span><span class="green" data-i18n="landing">green landing marker</span></li>
+          <li><kbd>Mouse</kbd> <span data-i18n="lookHelp">Look with the mouse · pause with Esc · mute with M · controller supported</span></li>
         </ul>
         <div class="buttons">
-          <button id="btn-start" class="primary" aria-label="开始游戏">开始滑行 <kbd>Enter</kbd></button>
+          <button id="btn-start" class="primary" aria-label="Start game" data-i18n-aria-label="startAria"><span data-i18n="start">Start slide</span> <kbd>Enter</kbd></button>
         </div>
         <p id="start-note" class="note"></p>
       </div>
@@ -86,39 +87,39 @@
 
     <div id="screen-pause" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
       <div class="card small">
-        <h2 id="pause-title">已暂停</h2>
+        <h2 id="pause-title" data-i18n="paused">Paused</h2>
         <div class="buttons">
-          <button id="btn-resume" class="primary" aria-label="继续游戏">继续 <kbd>Esc</kbd></button>
-          <button id="btn-restart-p" aria-label="从检查点重新开始">回到检查点 <kbd>R</kbd></button>
-          <button id="btn-mute" aria-label="切换静音" aria-pressed="false">声音：开</button>
+          <button id="btn-resume" class="primary" aria-label="Resume game" data-i18n-aria-label="resumeAria"><span data-i18n="resume">Resume</span> <kbd>Esc</kbd></button>
+          <button id="btn-restart-p" aria-label="Restart from checkpoint" data-i18n-aria-label="checkpointRestartAria"><span data-i18n="checkpointRestart">Restart at checkpoint</span> <kbd>R</kbd></button>
+          <button id="btn-mute" aria-label="Toggle sound" data-i18n-aria-label="muteAria" aria-pressed="false">Sound: on</button>
         </div>
       </div>
     </div>
 
     <div id="screen-over" class="screen hidden over" role="alertdialog" aria-modal="true" aria-labelledby="over-title" aria-describedby="over-desc">
       <div class="card">
-        <h1 id="over-title" class="title red">GAME OVER</h1>
-        <p id="over-desc" class="tagline">你被巨齿鲨一口吞下</p>
+        <h1 id="over-title" class="title red" data-i18n="gameOver">GAME OVER</h1>
+        <p id="over-desc" class="tagline" data-i18n="eatenByShark">The megalodon swallowed you whole</p>
         <p id="over-stats" class="stats"></p>
         <div class="buttons">
-          <button id="btn-respawn" class="primary" aria-label="从最近的检查点复活">从检查点复活 <kbd>R</kbd></button>
-          <button id="btn-restart" aria-label="从起点重新开始">从头开始</button>
+          <button id="btn-respawn" class="primary" aria-label="Respawn at the latest checkpoint" data-i18n-aria-label="respawnAria"><span data-i18n="respawn">Respawn at checkpoint</span> <kbd>R</kbd></button>
+          <button id="btn-restart" aria-label="Restart from the beginning" data-i18n-aria-label="restartAria" data-i18n="restart">Restart from start</button>
         </div>
       </div>
     </div>
 
     <div id="screen-finish" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="finish-title">
       <div class="card">
-        <h1 id="finish-title" class="title gold">安全抵达!</h1>
-        <p class="tagline">你从 1680 米高空一路滑进了终点码头</p>
+        <h1 id="finish-title" class="title gold" data-i18n="finishTitle">You made it!</h1>
+        <p class="tagline" data-i18n="finishDesc">You slid from 1,680 m above the ocean to the finish dock</p>
         <p id="finish-stats" class="stats"></p>
         <div class="buttons">
-          <button id="btn-again" class="primary" aria-label="再玩一次">再来一次 <kbd>Enter</kbd></button>
+          <button id="btn-again" class="primary" aria-label="Play again" data-i18n-aria-label="playAgainAria"><span data-i18n="playAgain">Play again</span> <kbd>Enter</kbd></button>
         </div>
       </div>
     </div>
 
-    <noscript>本游戏需要启用 JavaScript 与 WebGL。</noscript>
+    <noscript data-i18n="noScript">This game requires JavaScript and WebGL.</noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

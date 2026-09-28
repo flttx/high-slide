@@ -1,3 +1,5 @@
+import { t } from '../i18n.ts';
+
 export type ScreenId = 'screen-start' | 'screen-pause' | 'screen-over' | 'screen-finish';
 export type MsgKind = 'good' | 'warn' | 'bad' | 'cp' | '';
 
@@ -148,12 +150,12 @@ export class Hud {
     if (air !== this.last.air) this.airVal.textContent = this.last.air = air;
     const time = formatTime(d.time);
     if (time !== this.last.time) this.timeVal.textContent = this.last.time = time;
-    const cp = `检查点 ${d.checkpoint}/${d.checkpoints}`;
+    const cp = t('checkpointCount', { current: d.checkpoint, total: d.checkpoints });
     if (cp !== this.last.cp) {
       this.cpVal.textContent = this.last.cp = cp;
       this.cpTicks.forEach((t, i) => t.classList.toggle('on', i < d.checkpoint));
     }
-    const death = d.deaths > 0 ? `葬身鲨腹 ×${d.deaths}` : '';
+    const death = d.deaths > 0 ? t('deathCount', { count: d.deaths }) : '';
     if (death !== this.last.death) this.deathVal.textContent = this.last.death = death;
     const p = `${(Math.max(0, Math.min(1, d.progress)) * 100).toFixed(2)}%`;
     this.progFill.style.width = p;
@@ -235,6 +237,12 @@ export class Hud {
 
   setText(id: string, text: string): void {
     el(id).textContent = text;
+  }
+
+  refreshLanguage(): void {
+    this.last.cp = '';
+    this.last.death = '';
+    this.clearMessage();
   }
 
   get openScreen(): ScreenId | null {

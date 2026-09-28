@@ -12,6 +12,7 @@ import type { HuntInfo } from '../sharks/sharks.ts';
 import { LEVEL } from '../track/level.ts';
 import { Track } from '../track/track.ts';
 import { Hud, formatTime } from '../ui/hud.ts';
+import { t } from '../i18n.ts';
 import { buildClouds } from '../world/clouds.ts';
 import type { Clouds } from '../world/clouds.ts';
 import { buildEnvironment, buildOcean } from '../world/environment.ts';
@@ -73,21 +74,21 @@ export async function buildWorld(
   progress: (p: number, text: string) => Promise<void>,
 ): Promise<World> {
   const scene = new THREE.Scene();
-  await progress(0.08, '正在铺设 1680 米高空滑梯…');
+  await progress(0.08, t('loadTrack'));
   const track = new Track(LEVEL);
-  await progress(0.22, '正在生成天空与海洋…');
+  await progress(0.22, t('loadWorld'));
   const env = buildEnvironment(renderer, scene);
   const ocean = buildOcean(env);
   scene.add(ocean.mesh);
-  await progress(0.4, '正在搭建滑梯与检查点…');
+  await progress(0.4, t('loadTrackCheckpoints'));
   const visuals = buildTrackVisuals(track, LEVEL.checkpoints, env.envMap);
   scene.add(visuals.group);
   scene.add(buildScenery(track, env.envMap));
-  await progress(0.55, '正在堆积云层…');
+  await progress(0.55, t('loadClouds'));
   const centre = trackCentre(track);
   const clouds = buildClouds(centre);
   scene.add(clouds.mesh);
-  await progress(0.65, '正在唤醒巨齿鲨…');
+  await progress(0.65, t('loadShark'));
   const sharks = new Sharks(new THREE.Vector3(centre.x, 0, centre.z), 500);
   await sharks.load('models/megalodon.glb', SHARK_COUNT);
   scene.add(sharks.group);
@@ -224,10 +225,10 @@ export class Game {
     this.rider.place(0, LEVEL.checkpoints[0].s, LEVEL.startSpeed);
     this.rig.reset();
     this.hud.showHud(false);
-    if (this.world.sharks.usedFallback) this.hud.setText('start-note', '巨齿鲨模型加载失败，已使用简化模型。');
+    if (this.world.sharks.usedFallback) this.hud.setText('start-note', t('sharkFallback'));
     else {
       const best = loadBest();
-      if (best > 0) this.hud.setStats('start-note', [['最佳成绩', formatTime(best)]]);
+      if (best > 0) this.hud.setStats('start-note', [[t('bestTime'), formatTime(best)]]);
     }
     this.hud.showScreen('screen-start');
   }
@@ -322,8 +323,21 @@ export class Game {
     const b = document.getElementById('btn-mute');
     if (b) {
       b.setAttribute('aria-pressed', String(m));
-      b.textContent = m ? '声音：关' : '声音：开';
+      b.textContent = t(m ? 'muteOff' : 'muteOn');
     }
+  }
+
+  refreshLanguage(): void {
+    this.hud.refreshLanguage();
+    const mute = document.getElementById('btn-mute');
+    if (mute) mute.textContent = t(this.audio.isMuted ? 'muteOff' : 'muteOn');
+    if (this.phase === 'menu') {
+      const best = loadBest();
+      if (this.world.sharks.usedFallback) this.hud.setText('start-note', t('sharkFallback'));
+      else if (best > 0) this.hud.setStats('start-note', [[t('bestTime'), formatTime(best)]]);
+      else this.hud.setText('start-note', '');
+    } else if (this.phase === 'over') this.renderOverStats();
+    else if (this.phase === 'finished') this.renderFinishStats();
   }
 
   private handleKeys(): void {
@@ -376,11 +390,11 @@ export class Game {
     if (step === this.countStep) return;
     this.countStep = step;
     if (step >= 3) {
-      this.hud.message('GO!', 'good', 0.9);
+      this.hud.message(t('go'), 'good', 0.9);
       this.audio.countdown(true);
       this.setPhase('ride');
     } else {
-      this.hud.message(String(3 - step), 'warn', COUNT_STEP - 0.1, step === 0 && this.cpIndex > 0 ? `从检查点 ${this.cpIndex} 出发` : '');
+      this.hud.message(String(3 - step), 'warn', COUNT_STEP - 0.1, step === 0 && this.cpIndex > 0 ? t('leavingCheckpoint', { index: this.cpIndex }) : '');
       this.audio.countdown(false);
     }
   }
@@ -475,7 +489,7 @@ export class Game {
     this.hunt.point.copy(this.pred.point);
     this.hunt.timeLeft = this.pred.t;
     this.world.sharks.startHunt(this.hunt.point, this.hunt.timeLeft);
-    this.hud.message('巨齿鲨逼近！', 'bad', 2.4, '已经够不到滑梯了……');
+    this.hud.message(t('doomTitle'), 'bad', 2.4, t('doomSub'));
     this.audio.warn();
   }
 
@@ -529,11 +543,7 @@ export class Game {
 
   private showOver(): void {
     this.setPhase('over');
-    this.hud.setStats('over-stats', [
-      ['坠落高度', `${Math.max(0, Math.round(this.takeoffY))} m`],
-      ['葬身鲨腹', `${this.deaths} 次`],
-      ['复活位置', this.cpIndex === 0 ? '起点' : `检查点 ${this.cpIndex}`],
-    ]);
+    this.renderOverStats();
     this.hud.showHud(false);
     this.hud.showScreen('screen-over');
     this.input.releasePointerLock();
@@ -542,17 +552,29 @@ export class Game {
   private showFinish(): void {
     this.setPhase('finished');
     const best = saveBest(this.runTime);
-    this.hud.setStats('finish-stats', [
-      ['总用时', formatTime(this.runTime)],
-      ['最佳成绩', formatTime(best)],
-      ['葬身鲨腹', `${this.deaths} 次`],
-      ['最高速度', `${Math.round(this.stats.maxSpeed * 3.6)} km/h`],
-      ['最长滞空', `${this.stats.maxAir.toFixed(1)} s`],
-      ['最大过载', `${this.stats.maxG.toFixed(1)} G`],
-    ]);
+    this.renderFinishStats(best);
     this.hud.showHud(false);
     this.hud.showScreen('screen-finish');
     this.input.releasePointerLock();
+  }
+
+  private renderOverStats(): void {
+    this.hud.setStats('over-stats', [
+      [t('fallHeight'), `${Math.max(0, Math.round(this.takeoffY))} m`],
+      [t('eaten'), t('deaths', { count: this.deaths })],
+      [t('respawnPoint'), this.cpIndex === 0 ? t('startPoint') : t('checkpoint', { index: this.cpIndex })],
+    ]);
+  }
+
+  private renderFinishStats(best = loadBest()): void {
+    this.hud.setStats('finish-stats', [
+      [t('totalTime'), formatTime(this.runTime)],
+      [t('bestTime'), formatTime(best)],
+      [t('eaten'), t('deaths', { count: this.deaths })],
+      [t('topSpeed'), `${Math.round(this.stats.maxSpeed * 3.6)} km/h`],
+      [t('longestAir'), `${this.stats.maxAir.toFixed(1)} s`],
+      [t('maxG'), `${this.stats.maxG.toFixed(1)} G`],
+    ]);
   }
 
   private passCheckpoints(): void {
@@ -565,7 +587,7 @@ export class Game {
       this.world.visuals.setCheckpointActive(this.cpIndex);
       this.audio.checkpoint();
       this.flash = Math.max(this.flash, 0.25);
-      this.hud.message(`检查点 ${this.cpIndex}/${cps.length - 1}`, 'cp', 1.8, '坠海后将从这里复活');
+      this.hud.message(t('checkpointReached', { current: this.cpIndex, total: cps.length - 1 }), 'cp', 1.8, t('checkpointSub'));
     }
   }
 
@@ -581,10 +603,10 @@ export class Game {
       this.nextDoomCheck = this.time + 0.2;
       if (e.reason === 'gap') {
         this.gapsJumped++;
-        this.hud.message('跳！', 'warn', 1.1, this.gapsJumped === 1 ? 'A/D 调整方向 · W 前冲 · S 减速，对准绿色落点' : '');
+        this.hud.message(t('jump'), 'warn', 1.1, this.gapsJumped === 1 ? t('jumpHelp') : '');
       } else if (e.reason === 'flyoff') {
         this.rig.kick(0.5);
-        this.hud.message('飞出滑梯！', 'bad', 1.4, '快调整方向，寻找下方的滑梯');
+        this.hud.message(t('flyoff'), 'bad', 1.4, t('flyoffHelp'));
       }
     } else if (e.type === 'land') {
       const k = clamp(e.impact / 14, 0.15, 1.2);
@@ -598,13 +620,13 @@ export class Game {
       if (this.doomed) {
         this.doomed = false;
         this.world.sharks.cancelHunt();
-        this.hud.message('死里逃生！', 'good', 1.6);
-      } else if (r.airTime > 1.2) this.hud.message('完美落地！', 'good', 1.2);
+        this.hud.message(t('closeCall'), 'good', 1.6);
+      } else if (r.airTime > 1.2) this.hud.message(t('perfectLanding'), 'good', 1.2);
     } else if (e.type === 'finish') {
       this.finishT = 0;
       this.audio.finish();
       this.flash = 0.35;
-      this.hud.message('抵达终点！', 'good', 3);
+      this.hud.message(t('reachedFinish'), 'good', 3);
     }
   }
 
@@ -729,7 +751,7 @@ export class Game {
           x: clamp((p.x * 0.5 + 0.5) * W, 40, W - 40),
           y: clamp((-p.y * 0.5 + 0.5) * H, 40, H - 40),
           kind: land ? 'land' : 'sea',
-          text: land ? `落点 ${left.toFixed(1)}s` : this.doomed ? '鲨鱼！' : '调整方向',
+          text: land ? t('landingTime', { seconds: left.toFixed(1) }) : this.doomed ? t('shark') : t('adjust'),
         });
       } else this.hud.setReticle(null);
     } else this.hud.setReticle(null);

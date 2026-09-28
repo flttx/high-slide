@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "sim": "node --experimental-strip-types tools/sim.ts",
     "test:gameplay": "node tools/gameplay-check.mjs",
-    "test:lighting": "node tools/lighting-check.mjs"
+    "test:lighting": "node tools/lighting-check.mjs",
+    "test:i18n": "node tools/i18n-check.mjs"
   },
   "dependencies": {
     "three": "^0.186.0"
