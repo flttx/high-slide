@@ -25,7 +25,7 @@ async function api(method, path, body) {
   const res = await fetch(BASE + path, {
     method,
     headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const text = await res.text();
   let json;
