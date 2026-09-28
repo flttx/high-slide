@@ -150,9 +150,11 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
   const group = new THREE.Group();
   group.name = 'track';
 
-  const slideMat = new THREE.MeshStandardMaterial({
+  const slideMat = new THREE.MeshPhysicalMaterial({
     map: slideTexture(),
-    roughness: 0.18,
+    roughness: 0.32,
+    clearcoat: 0.65,
+    clearcoatRoughness: 0.24,
     metalness: 0.0,
     envMap,
     envMapIntensity: 1.1,
@@ -175,6 +177,10 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
   });
 
   const inner = innerProfile(28);
+  const ribs: THREE.Matrix4[] = [];
+  const ribFrame = new THREE.Matrix4();
+  const ribLocal = new THREE.Matrix4();
+  const ribRotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2 - LIP);
   for (const seg of track.segments) {
     const last = seg.count - 1;
     const hazardStart = seg.gap ? Math.max(0, last - Math.round(HAZARD_LEN / DS)) : last;
@@ -195,16 +201,29 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
     group.add(keel);
     group.add(new THREE.Mesh(capGeometry(seg, 0, false), shellMat));
     group.add(new THREE.Mesh(capGeometry(seg, last, true), shellMat));
+    // Match the panel seams; keep the reinforcement below the riding surface.
+    for (let s = SLIDE_TILE; s < seg.length - SLIDE_TILE; s += SLIDE_TILE) {
+      const r = track.frameAt(seg.index, s, makeFrame()).r;
+      const radius = r + SHELL + 0.06;
+      frameMatrix(seg, s, ribFrame, track);
+      ribLocal.compose(new THREE.Vector3(0, r, 0), ribRotation, new THREE.Vector3(radius, radius, 3));
+      ribs.push(ribFrame.clone().multiply(ribLocal));
+    }
     const film = new THREE.Mesh(extrude(seg, 0, last, innerProfile(8, -0.55, 0.55), 30, 0.025), filmMat);
     film.renderOrder = 2;
     group.add(film);
   }
 
+  const ribMesh = new THREE.InstancedMesh(new THREE.TorusGeometry(1, 0.022, 4, 18, 2 * LIP), shellMat, ribs.length);
+  ribs.forEach((matrix, i) => ribMesh.setMatrixAt(i, matrix));
+  ribMesh.computeBoundingSphere();
+  group.add(ribMesh);
+
   // ---- lip marker lights (streak past at speed) ----
-  const lightGeo = new THREE.SphereGeometry(0.11, 8, 6);
-  const warmMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3.2, 2.2) });
-  const redMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 0.4, 0.2) });
-  const greenMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 5, 1.2) });
+  const lightGeo = new THREE.SphereGeometry(0.075, 8, 6);
+  const warmMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.4, 1.1, 0.75) });
+  const redMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.25, 0.12) });
+  const greenMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 2.4, 0.65) });
   const warm: THREE.Matrix4[] = [];
   const red: THREE.Matrix4[] = [];
   const green: THREE.Matrix4[] = [];
@@ -243,13 +262,13 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
   // ---- support pylons down to the sea ----
   const pylonGeo = new THREE.CylinderGeometry(1, 1.25, 1, 10, 1, true);
   pylonGeo.translate(0, -0.5, 0);
-  const pylonMat = new THREE.MeshStandardMaterial({ color: 0xc9ccd1, roughness: 0.55, metalness: 0.35, envMap, envMapIntensity: 0.5 });
+  const pylonMat = new THREE.MeshStandardMaterial({ color: 0x99958b, roughness: 0.92, metalness: 0, envMap, envMapIntensity: 0.5 });
   const pylons: THREE.Matrix4[] = [];
   const foam: THREE.Matrix4[] = [];
   const ghostPts: THREE.Vector3[] = track.segments.flatMap((s) => s.gap?.ghost ?? []);
   for (const seg of track.segments) {
     const last = seg.count - 1;
-    const step = 42;
+    const step = Math.round(115 / DS);
     for (let i = seg.isCatch ? 60 : 20; i < last - 30; i += step) {
       get3(seg.pos, i, P);
       get3(seg.nrm, i, N);
@@ -387,7 +406,7 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
   const update = (time: number) => {
     filmTex.offset.y = -time * 0.9;
     const blink = 0.5 + 0.5 * Math.sin(time * 9);
-    redMat.color.setRGB(1 + 6 * blink, 0.25, 0.15);
+    redMat.color.setRGB(1 + 2 * blink, 0.25, 0.12);
     hoopMat.opacity = 0.35 + 0.25 * Math.sin(time * 4);
   };
 

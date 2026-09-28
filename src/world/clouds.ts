@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { rng } from '../core/math.ts';
 import { cloudAtlas } from './textures.ts';
 
-export const CLOUD_BASE = 560;
-export const CLOUD_TOP = 650;
+export const CLOUD_BASE = 780;
+export const CLOUD_TOP = 870;
 
 export interface Clouds {
   mesh: THREE.Mesh;
@@ -37,7 +37,7 @@ export function buildClouds(centre: THREE.Vector3): Clouds {
         CLOUD_BASE + r() * (CLOUD_TOP - CLOUD_BASE),
         cz + (r() - 0.5) * 260,
         120 + r() * 200,
-        0.75 + r() * 0.25,
+        0.62 + r() * 0.23,
       );
     }
   }
@@ -45,13 +45,13 @@ export function buildClouds(centre: THREE.Vector3): Clouds {
   for (let c = 0; c < 260; c++) {
     const a = r() * Math.PI * 2;
     const d = 4000 + r() * 16000;
-    add(centre.x + Math.cos(a) * d, CLOUD_BASE + r() * 120, centre.z + Math.sin(a) * d, 500 + r() * 900, 0.9);
+    add(centre.x + Math.cos(a) * d, CLOUD_BASE + r() * (CLOUD_TOP - CLOUD_BASE), centre.z + Math.sin(a) * d, 500 + r() * 900, 0.75);
   }
   // a few low wisps near the sea for depth
   for (let c = 0; c < 70; c++) {
     const a = r() * Math.PI * 2;
     const d = 500 + r() * 5000;
-    add(centre.x + Math.cos(a) * d, 90 + r() * 160, centre.z + Math.sin(a) * d, 80 + r() * 140, 0.35);
+    add(centre.x + Math.cos(a) * d, 90 + r() * 160, centre.z + Math.sin(a) * d, 80 + r() * 140, 0.28);
   }
 
   const count = puffs.length;
@@ -73,8 +73,8 @@ export function buildClouds(centre: THREE.Vector3): Clouds {
       THREE.UniformsLib.fog,
       {
         uMap: { value: null },
-        uLit: { value: new THREE.Color(1.25, 1.12, 0.98) },
-        uShade: { value: new THREE.Color(0.52, 0.58, 0.7) },
+        uLit: { value: new THREE.Color(1.12, 1.07, 1.0) },
+        uShade: { value: new THREE.Color(0.6, 0.65, 0.74) },
       },
     ]),
     vertexShader: /* glsl */ `

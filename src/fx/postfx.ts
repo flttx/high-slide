@@ -110,7 +110,22 @@ export class PostFX {
     this.composer = new EffectComposer(renderer, rt);
     this.composer.addPass(new RenderPass(scene, camera));
     // Ordinary sunlit slide panels should retain detail; reserve bloom for lights and glints.
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.35, 0.4, 1.6);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.12, 0.4, 1.6);
+    // Bound only the bloom source: the HDR sun/reflections must not spread a white veil
+    // over the track. The scene's exposure and marker colours stay unchanged.
+    this.bloom.materialHighPassFilter.fragmentShader = /* glsl */ `
+      uniform sampler2D tDiffuse;
+      uniform float luminosityThreshold;
+      uniform float smoothWidth;
+      varying vec2 vUv;
+      void main() {
+        vec3 color = texture2D(tDiffuse, vUv).rgb;
+        float brightness = luminance(color);
+        float mask = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, brightness);
+        color *= min(1.0, 1.0 / max(brightness, 0.0001));
+        gl_FragColor = vec4(color * mask, mask);
+      }
+    `;
     this.composer.addPass(this.bloom);
     this.final = new ShaderPass(FinalShader);
     this.composer.addPass(this.final);

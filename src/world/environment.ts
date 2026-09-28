@@ -72,7 +72,7 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sce
   scene.add(hemi);
 
   const fogColor = new THREE.Color(0.62, 0.72, 0.84);
-  scene.fog = new THREE.FogExp2(fogColor.getHex(), 0.000085);
+  scene.fog = new THREE.FogExp2(fogColor.getHex(), 0.00016);
   scene.environment = null;
 
   return { sky, sunDir, sun, envMap: envRT.texture, skyCube: cubeRT.texture, fogColor };
@@ -98,8 +98,8 @@ export function buildOcean(env: Environment): Ocean {
         uSunColor: { value: new THREE.Color(1.0, 0.86, 0.66) },
         uNormal: { value: null },
         uSky: { value: null },
-        uDeep: { value: new THREE.Color(0.004, 0.028, 0.045) },
-        uShallow: { value: new THREE.Color(0.02, 0.12, 0.14) },
+        uDeep: { value: new THREE.Color(0.004, 0.033, 0.05) },
+        uShallow: { value: new THREE.Color(0.018, 0.15, 0.165) },
       },
     ]),
     vertexShader: /* glsl */ `
@@ -151,7 +151,7 @@ export function buildOcean(env: Environment): Ocean {
         vec3 col = mix(body, sky, fres);
         float sd = max(dot(r, uSunDir), 0.0);
         col += uSunColor * (pow(sd, 900.0) * 60.0 + pow(sd, 120.0) * 3.0 + pow(sd, 18.0) * 0.12);
-        gl_FragColor = vec4(col, mix(0.55, 1.0, fres));
+        gl_FragColor = vec4(col, mix(0.48, 1.0, fres));
         #include <fog_fragment>
       }
     `,

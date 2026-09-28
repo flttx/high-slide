@@ -44,7 +44,7 @@ export function slideTexture(): THREE.CanvasTexture {
   // soft centre sheen band
   const g = ctx.createLinearGradient(0, 0, W, 0);
   g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(0.5, 'rgba(255,255,255,0.35)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.12)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
@@ -55,22 +55,28 @@ export function slideTexture(): THREE.CanvasTexture {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(W * 0.11, 0, 3, H);
   ctx.fillRect(W * 0.89 - 3, 0, 3, H);
-  // blue guide lines
-  ctx.fillStyle = '#1b66d6';
+  // Faded blue paint keeps the direction readable without looking like lane rails.
+  ctx.fillStyle = '#7c9cb0';
   ctx.fillRect(W * 0.2, 0, 3, H);
   ctx.fillRect(W * 0.8 - 3, 0, 3, H);
   // dashed centre line: 1.5 m dash every 4 m
   const mpp = H / SLIDE_TILE;
   for (let m = 0; m < SLIDE_TILE; m += 4) {
-    ctx.fillRect(W * 0.5 - 3, m * mpp, 6, 1.5 * mpp);
+    ctx.fillRect(W * 0.5 - 2, m * mpp, 4, 1.5 * mpp);
   }
-  // panel seams every 2 m
-  for (let m = 0; m < SLIDE_TILE; m += 2) {
-    ctx.fillStyle = 'rgba(60,60,70,0.35)';
-    ctx.fillRect(0, m * mpp, W, 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillRect(0, m * mpp + 2, W, 1);
+  // Fine lengthwise wear, deterministic so the surface does not change on reload.
+  const wear = rng(19);
+  for (let i = 0; i < 80; i++) {
+    const x = W * (0.14 + wear() * 0.72);
+    const y = wear() * H;
+    ctx.fillStyle = `rgba(88,105,108,${0.02 + wear() * 0.035})`;
+    ctx.fillRect(x, y, 0.5 + wear(), 8 + wear() * 60);
   }
+  // One moulded panel per tile, aligned with the external reinforcement ribs.
+  ctx.fillStyle = 'rgba(60,60,70,0.25)';
+  ctx.fillRect(0, 0, W, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillRect(0, 2, W, 1);
   // rivets on the walls
   ctx.fillStyle = 'rgba(40,40,40,0.5)';
   for (let m = 0; m < SLIDE_TILE; m += 1) {
