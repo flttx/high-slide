@@ -283,7 +283,11 @@ export function buildTrackVisuals(track: Track, checkpoints: CheckpointDef[], en
     pylons.forEach((m, i) => im.setMatrixAt(i, m));
     im.computeBoundingSphere();
     group.add(im);
-    const foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
+    const foamMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false,
+      // Separate foam from the sea in depth without drawing through foreground objects.
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    });
     const fm = new THREE.InstancedMesh(new THREE.RingGeometry(1, 1.9, 24), foamMat, foam.length);
     foam.forEach((m, i) => fm.setMatrixAt(i, m));
     fm.computeBoundingSphere();

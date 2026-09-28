@@ -27,6 +27,7 @@ export class CameraRig {
   readonly body = new THREE.Group();
   private readonly head = new THREE.Group();
   private readonly legs: THREE.Group[] = [];
+  private readonly knees: THREE.Group[] = [];
   private readonly arms: THREE.Group[] = [];
   private readonly q = new THREE.Quaternion();
   private readonly qTarget = new THREE.Quaternion();
@@ -78,14 +79,18 @@ export class CameraRig {
       stripe.rotation.x = Math.PI / 2;
       stripe.position.z = -0.38;
       leg.add(stripe);
+      const knee = new THREE.Group();
+      knee.position.z = -0.41;
+      leg.add(knee);
+      this.knees.push(knee);
       const shin = new THREE.Mesh(new THREE.CapsuleGeometry(0.068, 0.46, 4, 10), skin);
       shin.rotation.x = Math.PI / 2;
-      shin.position.z = -0.7;
-      leg.add(shin);
+      shin.position.z = -0.29;
+      knee.add(shin);
       const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.14, 4, 8), skin);
-      foot.position.set(0, 0.07, -0.98);
+      foot.position.set(0, 0.07, -0.57);
       foot.rotation.x = -0.25;
-      leg.add(foot);
+      knee.add(foot);
       this.body.add(leg);
       this.legs.push(leg);
 
@@ -120,6 +125,9 @@ export class CameraRig {
     this.initialised = false;
     this.impulse = 0;
     this.fovKick = 0;
+    this.airBlend = 0;
+    this.lift = 0;
+    this.roll = 0;
   }
 
   getEye(out: THREE.Vector3): THREE.Vector3 {
@@ -201,15 +209,19 @@ export class CameraRig {
 
     // limbs: gripping the slide vs flailing in the air
     const air = this.airBlend;
+    const fall = smoothstep(0.25, 1.4, rider.airTime);
     for (let i = 0; i < 2; i++) {
       const sx = i === 0 ? -1 : 1;
-      const ph = time * (7 + i * 1.3);
+      const ph = rider.airTime * 3.4 + i * 1.2;
       const leg = this.legs[i];
       leg.rotation.set(
-        lerp(0.02 * Math.sin(time * 31 + i) * sp, 0.35 + 0.25 * Math.sin(ph), air) - inp.throttle * 0.08 * (1 - air),
-        lerp(0, sx * 0.5, air),
+        lerp(0.02 * Math.sin(time * 31 + i) * sp, lerp(0.28, 0.14, fall) + 0.06 * Math.sin(ph), air) - inp.throttle * 0.08 * (1 - air),
+        // Legs point along -Z: opposite yaw signs keep each foot outside its hip.
+        -sx * lerp(0.13, 0.28, fall) * air,
         0,
       );
+      // Tuck on takeoff, then relax the knees into a separated falling pose.
+      this.knees[i].rotation.x = -(lerp(0.38, 0.2, fall) + 0.06 * Math.sin(ph + 0.5)) * air;
       const arm = this.arms[i];
       arm.rotation.set(
         lerp(0.55 - inp.throttle * 0.35, 0.3 + 0.4 * Math.sin(ph * 1.2), air),

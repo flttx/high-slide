@@ -50,7 +50,14 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer, scene: THREE.Sce
   floor.scale.setScalar(5000);
   const pmrem = new THREE.PMREMGenerator(renderer);
   skyScene.add(floor);
+  // the DirectionalLight already lights with the sun; a sun disc in the IBL double-counts it and
+  // shows up as blooming white glints on distant glossy slide rims. The sea cube below keeps it.
+  skyClone.material.uniforms.showSunDisc.value = 0;
+  // Keep the broad solar halo out of ambient lighting; it washes sun-facing surfaces white.
+  skyClone.material.uniforms.mieCoefficient.value = 0.0005;
   const envRT = pmrem.fromScene(skyScene, 0, 1, 100000);
+  skyClone.material.uniforms.showSunDisc.value = 1;
+  skyClone.material.uniforms.mieCoefficient.value = u.mieCoefficient.value;
   skyScene.remove(floor);
 
   const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
@@ -79,7 +86,8 @@ export interface Ocean {
 
 export function buildOcean(env: Environment): Ocean {
   const normalMap = oceanNormalTexture();
-  const geo = new THREE.PlaneGeometry(120000, 120000, 1, 1);
+  // Smaller triangles keep depth interpolation stable beneath distant shoreline foam.
+  const geo = new THREE.PlaneGeometry(120000, 120000, 32, 32);
   geo.rotateX(-Math.PI / 2);
   const material = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.merge([

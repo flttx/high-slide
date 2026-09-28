@@ -1,0 +1,179 @@
+# 剩余任务与优化清单 · MEGALODON DROP
+
+分析日期：2026-09-28 · 基线提交：`a0bdfdc`
+
+标记说明：
+- 工作量：**S** 不到半天 / **M** 半天到 2 天 / **L** 2 天以上
+- 置信度：**已确认**＝代码里直接看到；**待验证**＝推理成立，但需要截图或 profiling 确认
+
+---
+
+## 0. 当前基线
+
+| 检查 | 结果 |
+| --- | --- |
+| `npx tsc --noEmit -p .` | 通过 |
+| `npm run sim` | neutral / tuck / wobbly / hands-off 都能跑完全程（seg5）；brake-ish 在 seg0 坠海；最大 G 3.04 ~ 3.47；落地冲击 4.3 ~ 16.1 |
+| `npm run build` | 通过；JS 打成单个包 750 kB（gzip 后 200 kB）；`vite.config.ts` 把 `chunkSizeWarningLimit` 调到了 1500，所以不会出现体积警告 |
+| 截图脚本、`tools/keys.mjs` | 本次没有运行（需要浏览器） |
+
+---
+
+## 1. 剩余任务（逐项核对 `progress.md` 待办）
+
+6 项**全部还没开始**。
+
+| # | 任务 | 现状（代码证据） | 补充发现 |
+| --- | --- | --- | --- |
+| 1 | 骑手模型 | `src/game/cameraRig.ts:60-97` 还是胶囊拼成的身体；`head.position` 在 `:50` 和 `:200` 两处 | 实测 `rider_a.glb`：8.8 MB，38,552 个三角面，**没有骨骼**，3 张 **4096²** 贴图（2 张 JPEG、1 张 PNG），解码后显存约 270 MB。第一人称只看得到手脚，建议贴图降到 1024²（最高 2048²），面数减到 1 万以内 |
+| 2 | 滑梯真实感 | `src/world/trackMesh.ts:153` 的 `slideMat` 仍是 MeshStandardMaterial | 和 P1-5（分段合并）一起做：材质定稿后再合并 |
+| 3 | 支柱 | `trackMesh.ts:252` 仍是 `step = 42`；`:246` 的 `pylonMat` 是金属（metalness 0.35） | 间距拉大后，`:258-274` 的遮挡检测候选点变少，加载也会变快 |
+| 4 | 画面 | `src/world/environment.ts:68` 雾密度 `0.000085`；`src/world/clouds.ts:5-6` 云层 `CLOUD_BASE = 560`、`CLOUD_TOP = 650` | 云高常量同时被 `clouds.ts:151` 的 `density()` 用来判断穿云白屏，只改常量就能联动。改完后要确认第 2 段俯冲确实穿过 780 ~ 870 m |
+| 5 | 文案 | `src/game/game.ts:76`、`index.html:72`、`index.html:113` 仍写 1100 米 | — |
+| 6 | 验证 | — | `tools/keys.mjs:31-39` 的「按住 D / A」用例需要重新定预期；sim 没有覆盖飞出侧墙的情况，见 P0-2 |
+
+---
+
+## 2. 新发现的问题与优化项
+
+### P0 · 影响玩家体验的缺陷
+
+**P0-1 临门失误落海时，鲨鱼和咬合画面对不上**（待验证，M）
+- 位置：`src/game/game.ts:498-506` `eat()`；`src/sharks/sharks.ts:267-291` `startHunt()`；判定门槛在 `game.ts:458`
+- 正常流程：只有空中时间超过 0.2 s，并且每 0.2 s 一次的 `isDoomed()` 判定为真时，才会走「预判落海 → 鲨鱼提前张嘴等」。
+- 问题：如果是最后一刻才失误（例如擦着落地段边缘掉下去），会直接进入 `eat()`。
+  - `startHunt(r.pos, 0)` 的可达距离只有 60 m，超出就把鲨鱼瞬移到 45 m 外、水下 40 m 深处，然后立刻 `chomp()`，跳过了 hunt 阶段。
+  - 鲨鱼嘴离骑手的距离 `biteOffset` 几乎一定超过 14 m，于是 `followMouth = false`：镜头停在落水点，吞咬遮罩出现了，身边却看不到鲨鱼。
+- 修法：在这条临时触发的路径里，把鲨鱼直接放到 `r.pos` 附近（水平偏移不超过 5 m，贴着水面）；或者在 `mode` 变成 `'sea'` 的那一刻补一次不受 0.2 s 间隔限制的判定。
+- 验证：构造一个「最后一刻失误」的截图用例（例如 `?miss=N` 配合晚转向）。
+
+**P0-2 侧墙降低后，飞出滑梯的路径没有回归测试**（已确认，S ~ M）
+- 位置：`src/physics/rider.ts:146-150`（横向偏角超过 `lipAngle` 就 `takeoff('flyoff')`）；`tools/sim.ts` 的风格列表；`tools/keys.mjs:31-39`
+- 现状：sim 五种风格的最大横向偏角只有 8°（上限 36°），没有一种会触发 flyoff；`keys.mjs` 按住 D 1.2 s / A 2 s，现在可能直接飞出滑梯。
+- 修法：
+  1. sim 加一种「满舵 N 秒」风格，记录多久会触发 flyoff，以及各段飞出后能不能落回滑梯；
+  2. 按结果改 `keys.mjs` 的预期；
+  3. 决定飞出是设计内的惩罚，还是要调参（`steerAccel` / `lateralDamping`）。
+
+### P1 · 性能（按收益排序）
+
+**P1-1 起点塔有 308 个独立 draw call**（已确认，S ~ M）
+- 位置：`trackMesh.ts:406-428` `buildStartTower()`、`:489-496` `addStrut()`
+- 现状：`levels = floor(1678.6 / 45) = 37`，每层 8 根斜撑，一共 304 根斜撑加 4 条腿，也就是 308 个 Mesh，只用到 2 种几何体、2 种材质。
+- 修法：改成两个 InstancedMesh（腿、斜撑各一个），或用 `mergeGeometries` 烘焙成一个 Mesh，draw call 从 308 降到 2。
+
+**P1-2 5 条鲨鱼一直在渲染和播放动画**（已确认，S ~ M）
+- 位置：`game.ts:46` `SHARK_COUNT = 5`；`sharks.ts:169` `frustumCulled = false`；`sharks.ts:330` 每帧对 5 条鲨鱼都执行 `mixer.update`
+- 现状：每条模型 58,900 面，5 条约 29.5 万面，不管在不在视野里、是不是空闲，每帧都要画。
+- 修法：
+  - 用已有的 `tools/blender` 流程把模型减到约 1.5 万面；
+  - 只对当前追猎的那条关闭剔除；空闲且离相机远的鲨鱼设 `visible = false`，并跳过 `mixer.update`。
+
+**P1-3 后处理每个像素固定做 30 次纹理采样**（已确认，S）
+- 位置：`src/fx/postfx.ts:62-73`：循环 10 次，每次 3 次 `texture2D`，全分辨率执行（像素比上限 1.5，见 `src/main.ts:21`）。菜单里或低速时模糊和色差都接近 0，也照样执行。
+- 修法：`uBlur + uCA` 低于阈值时，只采样一次。
+
+**P1-4 合成用的渲染目标开了 4 倍 MSAA**（代码已确认，收益待 profiling，S）
+- 位置：`postfx.ts:109`，`samples: 4` 加 HalfFloat。后面的径向模糊本来就会把抗锯齿的边缘抹掉。
+- 修法：分别试 `samples` 设为 0 和 2，对比画质和帧时间。
+
+**P1-5 6 段轨道没有合并，约 40 ~ 48 个 draw call**（已确认，M）
+- 位置：`trackMesh.ts:178-201`。每段各有 1 ~ 3 块内表面，外加外壳、龙骨、2 个端盖和水膜。
+- 修法：待办 2 的材质定稿后，按材质跨段合并，降到 5 ~ 6 个；新加的接缝和法兰肋也直接并进去。
+
+**P1-6 水膜整段叠加绘制**（待验证，S）
+- 位置：`trackMesh.ts:198-200`。水膜用 `AdditiveBlending`、`depthWrite: false`，覆盖整段内表面。
+- 修法：雾调浓以后，远处的水膜本来就看不清，可以只在相机附近一段显示。
+
+### P1 · 可访问性与健壮性
+
+**P1-7 没有响应「减少动态效果」设置（prefers-reduced-motion）**（已确认，M）
+- `src/style.css:586` 只关掉了 CSS 动画；镜头抖动、速度线、闪白、巨齿合拢遮罩都没有检查这个设置（`src/` 里没有 `matchMedia`）。
+- 修法：启动时读取一次，调小抖动幅度、闪光透明度和速度线强度。
+
+**P1-8 没有处理 WebGL 上下文丢失**（已确认，S ~ M）
+- `src/` 里没有监听 `webglcontextlost`，`main.ts:18-38` 只处理初始化失败。显卡驱动重置后画面会直接卡住，没有任何提示。
+- 修法：至少调用 `preventDefault()`、暂停游戏并给出友好提示；可选：上下文恢复后重建场景。
+
+**P1-9 静音状态不会保存**（已确认，S）
+- `game.ts:318` 的 `toggleMute()` 不读写 localStorage，每次刷新都会恢复有声。最佳成绩已经用 `game.ts:48` 的 `BEST_KEY` 存了。
+- 修法：照 `BEST_KEY` 的写法，加一个 `high-slide.muted` 键，沿用现有的 try/catch。
+
+**P1-10 触屏玩家看不到操作说明**（已确认，S ~ M）
+- `src/game/input.ts:46-55` 已经支持左右半屏转向、双指俯身，但 `index.html:36` 的提示只写了键鼠操作，`style.css:568` 开始的小屏媒体查询还把 `#hint` 隐藏了。
+- 触屏没有对应「S 张开减速」的操作。
+- 修法：触屏设备显示专门的提示；竖屏时提示横过来玩。
+
+### P2 · 工程与代码质量
+
+**P2-1 没有 lint、单元测试和 CI**（已确认，M）
+- `package.json` 只有 dev / build / preview / typecheck / sim。「改完跑 lint」这一步现在没法执行。
+- 修法：
+  - 加 ESLint 和 typescript-eslint；
+  - 把 sim 结果改成断言（brake 必须坠海、其余风格必须到 seg5、G 值不超上限），接进 CI。
+
+**P2-2 sim 硬编码了步长**（已确认，S）
+- `tools/sim.ts:68` 的 `const dt = 1 / 120` 和 `src/core/config.ts:24` 的 `FIXED_DT` 重复定义。以后调 `FIXED_DT` 时，sim 验证的就不是游戏真正用的步长。
+- 修法：直接 import `FIXED_DT`。
+
+**P2-3 截图和键盘测试脚本写死了 Chrome 路径**（已确认，S）
+- `tools/shots.mjs:8`、`tools/keys.mjs:5` 默认指向旧的沙箱路径 `C:/...`，换台机器就会失败。
+- 修法：没设置 `CHROME` 时直接报错，提示用户设置；或者自动查找 Chrome。同时在 `package.json` 里加 `shots` 和 `keys` 两个脚本。
+
+**P2-4 缺少 README**（S）
+- `progress.md` 是工作日志，不是说明文档。
+- 修法：写一份 README，说明怎么运行、有哪些调试 URL 参数、工具链怎么用。
+
+**P2-5 `present()` 太长**（M，下次改到时再拆）
+- 位置：`game.ts:659-792`，130 多行，混着镜头、边缘警告音、落点准星、后处理参数、HUD 和音频；整个 `game.ts` 有 816 行。
+- 修法：拆成 `updateCamera` / `updateReticle` / `updateFx` / `updateHud`，不改行为。
+
+**P2-6 落点预测没有考虑重力加速**（待验证，S ~ M）
+- `rider.ts:218` 的 `predict()` 开始时记下 `gravityScale`，整个预测过程都用这个值；而 `game.ts:466` 在注定落海的下坠中会把重力逐步加大到 2.6 倍。结果是准星和倒计时比实际略微乐观。
+
+**P2-7 `checkLanding` 只检查终点所在的格子**（待验证，S ~ M，防御性）
+- `src/track/track.ts:327-382` 只以本步终点 `cur` 为中心，查询 3×3×3 的空间哈希格子。
+  - 游戏内步长 1/120 s，没有问题；
+  - 预测用的步长是 1/30 s，每步移动 2 ~ 3 m，目前也还在余量内；
+  - 速度或步长再变大，就可能直接穿过落地段而检测不到。
+
+**P2-8 零碎清理**（S）
+- `trackMesh.ts:189` 设置了 `receiveShadow = true`，但全局没有开启 shadowMap，是无效代码。
+- `src/game/bot.ts:25` 的 `pred.seg < r.graceSeg` 永远不成立（`graceSeg` 是起跳段，段号只增不减），是多余的判断。
+- 整个项目没有调用过 `dispose()`。场景只构建一次，目前没有影响；以后如果要做画质切换或重建场景，需要补上。
+- `src/world/textures.ts:253` 的标签贴图默认 1024×192，3 张约占 3 MB 显存，可以降到 512×96。
+- 打包出的单个 JS 文件有 750 kB，靠调高 `chunkSizeWarningLimit` 才没有警告。可以用 `manualChunks` 把 three 单独拆成一个包，方便浏览器缓存（总大小不变）。
+
+---
+
+## 3. 产品层面待决策（不是缺陷）
+
+- 落地好坏没有反馈：冲击 4 和冲击 16 的区别只有镜头抖动和音效。
+- 没有难度选项、新手教程和排行榜（只有本地最佳成绩）。
+- brake-ish 风格在第 0 段就坠海：要不要对新手宽容一点（例如在第一个断口前提示最低速度）。
+
+---
+
+## 4. 建议执行顺序
+
+1. **快速修正**（约半天）：待办 5 文案、P2-2、P2-3、P1-9、P2-8 中的 `receiveShadow`
+2. **确认并修复缺陷**：先截图确认 P0-1 再修；P0-2 给 sim 加满舵风格，再据结果改 `keys.mjs`
+3. **性能容易改的部分**（约 1 天）：P1-1、P1-3、P1-2 的剔除部分。改前改后都记录 `renderer.info.render.calls`、`triangles` 和帧时间
+4. **画面批次**：先做待办 2、3、4（材质、支柱、雾、云），再做 P1-5 合并和 P1-6，避免合并两次
+5. **骑手**：待办 1（贴图不超过 2048，建议 1024；减面；绑骨；加载失败回退到胶囊身体）
+6. **可访问性与健壮性**：P1-7、P1-8、P1-10
+7. **工程化**：P2-1、P2-4；P2-5 等下次改 `game.ts` 时再拆
+
+每一批做完都要跑：`npx tsc --noEmit -p .`、`npm run sim`、`npm run build`、`progress.md` 里列的 4 组截图，以及 `node tools/keys.mjs`。
+
+---
+
+## 附：已核实没有问题的部分
+
+- Tripo 密钥从 `TRIPO_API_KEY` 或 `~/.tripo/config.json` 读取，git 历史里没有泄露。
+- `dist/`、`tools/shots/`、`tools/tripo/out` 都已加入 gitignore。
+- 物理用固定步长 1/120 s，一帧最多跑 24 步，超出后清零（`game.ts:416-425`）；切到后台会自动暂停（`game.ts:203`）。
+- 弹窗有焦点陷阱，关闭时焦点会还回原处，也有 `aria-modal` 和 `aria-live`（`src/ui/hud.ts:76-95`、`:245-264`）。
+- 支持手柄（`input.ts:93-115`）。
+- 鲨鱼模型加载失败会换成简化模型；初始化失败会显示友好的中文提示。
+- `src/` 里没有 `any`，也没有遗留的 `console.log`。
