@@ -2,6 +2,14 @@
 
 更新：2026-09-28
 
+## 当前状态：英文默认与游戏中英切换
+
+- README.md 和 AGENTS.md 已改为英文。游戏文案集中在 `src/i18n.ts`，支持英语和简体中文；首次访问默认英语。
+- 名称保留英文品牌 MEGALODON DROP，中文游戏名为“巨齿鲨：深渊滑梯”；开始菜单副标题同步说明飞跃断口并躲避巨齿鲨。
+- 右上角固定按钮可在加载时切换，已保存选择。HUD、游戏提示、菜单和结束统计均支持切换，并更新文档语言标记。
+- 新增 `npm run test:i18n`，覆盖英文默认、切换、HUD、保存与浏览器错误。
+- 验证通过：lint、typecheck、build、sim、`PORT=5174 npm run test:i18n`、`test:gameplay`、`test:lighting`、`git diff --check`。语言回归确认英语默认、中英切换与保存、HUD 同步，浏览器无错误。
+
 ## 当前状态：lint 与 GitHub Actions 已接入
 
 - 新增 Oxlint 配置和 `npm run lint`，检查正确性问题，禁止显式 `any`、调试器和游戏源码的 `console`。

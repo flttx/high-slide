@@ -1,5 +1,12 @@
 # 检查与诊断记录
 
+# 国际化（2026-09-28）
+- 静态 HTML 原本将中文直接写入菜单与 HUD，运行时中文还分布在加载、坠落、检查点、结算与 reticle 文案中。单独翻译入口不能覆盖动态文本，因此统一放入 `src/i18n.ts`，HTML 用 `data-i18n`。
+- 未设置偏好时固定默认英语，不依赖浏览器系统语言；显式中文偏好保存为 `high-slide.language`。localStorage 不可用时仍在当前会话切换。
+- 语言按钮固定在视口右上角，开始加载前即可切换；单一入口不属于弹窗的焦点循环。动态 HUD 与结算统计在切换时重绘。
+- 用户要求 README.md 与 AGENTS.md 使用英文；此项仅针对这两份项目入口文档，内部历史进度记录仍可使用中文。
+- 验证通过：lint、typecheck、build、sim；`PORT=5174` 下 i18n、gameplay、lighting 浏览器回归通过。i18n 检查确认英语默认、中文切换、HUD 本地化、选择持久化、固定定位和无浏览器错误。
+
 ## lint 与 CI（2026-09-28）
 - TypeScript 当前为 7.0.2，而 `typescript-eslint@8.70.1` peer 范围为 `>=4.8.4 <6.1.0`。未强制安装不兼容 parser，也未降级项目编译器；采用支持 TypeScript 的 Oxlint 1.85.0。
 - `npm run lint` 已配置源码显式 `any`、debugger、源码 console 与正确性规则。检查发现并修正 Tripo API GET 选项包含空 body 的问题。
