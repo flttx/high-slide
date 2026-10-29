@@ -12,7 +12,9 @@
     "sim": "node --experimental-strip-types tools/sim.ts",
     "test:gameplay": "node tools/gameplay-check.mjs",
     "test:lighting": "node tools/lighting-check.mjs",
-    "test:i18n": "node tools/i18n-check.mjs"
+    "test:i18n": "node tools/i18n-check.mjs",
+    "test:interleave": "node --experimental-strip-types tools/interleave-check.mjs",
+    "test:stereo-panel": "node tools/stereo-panel-check.mjs"
   },
   "dependencies": {
     "three": "^0.186.0"

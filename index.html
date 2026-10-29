@@ -11,6 +11,45 @@
   <body>
     <canvas id="view" tabindex="0" aria-label="Game view: first-person high-altitude slide" data-i18n-aria-label="canvasLabel"></canvas>
     <button id="language-toggle" class="language-toggle" type="button" data-language-toggle aria-label="Switch language to Chinese">中文</button>
+    <button id="interleave-toggle" class="interleave-toggle" type="button" aria-pressed="false" data-interleave-toggle data-i18n="interleave">3D interleave</button>
+    <button id="stereo-settings" class="stereo-settings" type="button" data-stereo-settings data-i18n="stereoSettings">3D settings</button>
+
+    <dialog id="stereo-panel" aria-labelledby="stereo-title" aria-describedby="stereo-help">
+      <form id="stereo-form">
+        <header class="stereo-heading">
+          <h2 id="stereo-title" data-i18n="stereoSettings">3D settings</h2>
+          <button id="stereo-close" type="button" data-i18n="stereoClose">Close</button>
+        </header>
+        <p id="stereo-help" data-i18n="stereoHelp">Gameplay is frozen while tuning. Apply numeric changes when ready.</p>
+        <label class="stereo-row" for="stereo-mode"><span data-i18n="stereoMode">Display</span>
+          <select id="stereo-mode"><option value="normal" data-i18n="stereoNormal">Normal 2D</option><option value="interleave" data-i18n="interleave">3D interleave</option><option value="view" data-i18n="stereoSingle">Single view</option></select>
+        </label>
+        <div class="stereo-preview-control">
+          <label for="stereo-preview" data-i18n="stereoPreview">Preview view</label><output id="stereo-view-label" for="stereo-preview"></output>
+          <input id="stereo-preview" type="range" min="1" max="24" step="1" value="1" disabled />
+        </div>
+        <fieldset><legend data-i18n="stereoCameras">Views and depth</legend>
+          <label class="stereo-row" for="stereo-views"><span data-i18n="stereoViews">View count</span><input id="stereo-views" type="number" min="2" max="32" step="1" required /></label>
+          <label class="stereo-row" for="stereo-span"><span data-i18n="stereoSpan">View span (m)</span><input id="stereo-span" type="number" min="0" max="0.5" step="0.001" required /></label>
+          <label class="stereo-row" for="stereo-focus"><span data-i18n="stereoFocus">Focus distance (m)</span><input id="stereo-focus" type="number" min="0.5" max="1000" step="0.1" required /></label>
+          <label class="stereo-check"><input id="stereo-reverse" type="checkbox" /><span data-i18n="stereoReverse">Reverse view order</span></label>
+        </fieldset>
+        <fieldset><legend data-i18n="stereoLens">Lens calibration</legend>
+          <label class="stereo-row" for="stereo-pitch"><span data-i18n="stereoPitch">Lens pitch</span><input id="stereo-pitch" type="number" min="1" max="100" step="0.000001" required /></label>
+          <label class="stereo-row" for="stereo-slant"><span data-i18n="stereoTan">Lens tan</span><input id="stereo-slant" type="number" min="-2" max="2" step="0.000001" required /></label>
+          <label class="stereo-row" for="stereo-offset"><span data-i18n="stereoOffset">Phase offset</span><input id="stereo-offset" type="number" min="-100" max="100" step="0.001" required /></label>
+        </fieldset>
+        <fieldset><legend data-i18n="stereoQuality">Render quality</legend>
+          <label class="stereo-row" for="stereo-scale"><span data-i18n="stereoScale">View resolution scale</span><input id="stereo-scale" type="number" min="0.125" max="1" step="0.001" required /></label>
+          <p data-i18n="stereoQualityHelp">0.25 is the default. Higher values add detail and GPU cost. Keep view count matched to your display.</p>
+        </fieldset>
+        <div class="stereo-actions"><button class="primary" type="submit" data-i18n="stereoApply">Apply changes</button><button id="stereo-reset" type="button" data-i18n="stereoReset">Reset defaults</button></div>
+        <p id="stereo-status" role="status" aria-live="polite"></p>
+        <label for="stereo-link" data-i18n="stereoLink">Applied configuration link</label>
+        <input id="stereo-link" type="text" readonly />
+        <button id="stereo-copy" type="button" data-i18n="stereoCopy">Copy link</button>
+      </form>
+    </dialog>
 
     <div id="hud" class="hidden">
       <div class="gauge alt" aria-label="Altitude" data-i18n-aria-label="altitude">
@@ -80,6 +119,8 @@
         </ul>
         <div class="buttons">
           <button id="btn-start" class="primary" aria-label="Start game" data-i18n-aria-label="startAria"><span data-i18n="start">Start slide</span> <kbd>Enter</kbd></button>
+          <button type="button" aria-pressed="false" data-interleave-toggle data-i18n="interleave">3D interleave</button>
+          <button type="button" data-stereo-settings data-i18n="stereoSettings">3D settings</button>
         </div>
         <p id="start-note" class="note"></p>
       </div>
@@ -92,6 +133,8 @@
           <button id="btn-resume" class="primary" aria-label="Resume game" data-i18n-aria-label="resumeAria"><span data-i18n="resume">Resume</span> <kbd>Esc</kbd></button>
           <button id="btn-restart-p" aria-label="Restart from checkpoint" data-i18n-aria-label="checkpointRestartAria"><span data-i18n="checkpointRestart">Restart at checkpoint</span> <kbd>R</kbd></button>
           <button id="btn-mute" aria-label="Toggle sound" data-i18n-aria-label="muteAria" aria-pressed="false">Sound: on</button>
+          <button type="button" aria-pressed="false" data-interleave-toggle data-i18n="interleave">3D interleave</button>
+          <button type="button" data-stereo-settings data-i18n="stereoSettings">3D settings</button>
         </div>
       </div>
     </div>

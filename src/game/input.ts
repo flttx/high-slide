@@ -32,6 +32,9 @@ export class Input {
   constructor(el: HTMLElement) {
     this.el = el;
     window.addEventListener('keydown', (e) => {
+      if (e.target instanceof Element && e.target.closest('input, select, textarea, dialog, [contenteditable="true"]')) return;
+      // Let focused controls activate natively without also starting/resuming the game.
+      if ((e.code === 'Space' || e.code === 'Enter') && e.target instanceof Element && e.target.closest('button')) return;
       if (CAPTURED.has(e.code)) e.preventDefault();
       if (!e.repeat) this.edges.add(e.code);
       this.keys.add(e.code);

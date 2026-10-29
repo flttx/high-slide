@@ -12,6 +12,7 @@ import type { HuntInfo } from '../sharks/sharks.ts';
 import { LEVEL } from '../track/level.ts';
 import { Track } from '../track/track.ts';
 import { Hud, formatTime } from '../ui/hud.ts';
+import { StereoPanel } from '../ui/stereoPanel.ts';
 import { t } from '../i18n.ts';
 import { buildClouds } from '../world/clouds.ts';
 import type { Clouds } from '../world/clouds.ts';
@@ -106,6 +107,7 @@ export class Game {
   private readonly input: Input;
   private readonly rig: CameraRig;
   private readonly fx: PostFX;
+  private readonly stereoPanel: StereoPanel;
   private readonly audio = new AudioEngine();
   private readonly spray = new Particles(6000, 0xeaf6ff, 0.85);
   private readonly lines = new SpeedLines(260);
@@ -173,6 +175,13 @@ export class Game {
     this.rig = new CameraRig(window.innerWidth / Math.max(1, window.innerHeight));
     world.scene.add(this.rig.body, this.spray.points, this.lines.mesh);
     this.fx = new PostFX(renderer, world.scene, this.rig.camera);
+    this.fx.setInterleaved(new URLSearchParams(location.search).has('interleave'));
+    const preview = Number(new URLSearchParams(location.search).get('previewView'));
+    if (this.fx.interleaved && Number.isInteger(preview) && preview >= 1) this.fx.setPreviewView(preview - 1);
+    this.stereoPanel = new StereoPanel(this.fx, () => this.pause(), (resize) => {
+      if (resize) this.resize();
+      else this.fx.render(this.time);
+    });
 
     let d = 0;
     for (const seg of this.track.segments) {
@@ -192,6 +201,12 @@ export class Game {
     on('btn-restart-p', () => this.respawn());
     on('btn-resume', () => this.resume());
     on('btn-mute', () => this.toggleMute());
+    document.querySelectorAll<HTMLButtonElement>('[data-interleave-toggle]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.fx.setInterleaved(!this.fx.interleaved);
+        this.resize();
+      });
+    });
 
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === canvas;
@@ -236,10 +251,16 @@ export class Game {
   resize(): void {
     const w = window.innerWidth;
     const h = Math.max(1, window.innerHeight);
+    this.renderer.setPixelRatio(this.fx.interleaved ? window.devicePixelRatio : Math.min(window.devicePixelRatio, 1.5));
     this.renderer.setSize(w, h, false);
     this.rig.camera.aspect = w / h;
     this.rig.camera.updateProjectionMatrix();
     this.fx.setSize(w, h);
+    document.querySelectorAll('[data-interleave-toggle]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(this.fx.interleaved));
+    });
+    // Paused/calibration frames do not run present(); repaint after canvas resize.
+    if (this.paused || this.stereoPanel.open) this.fx.render(this.time);
   }
 
   // ------------------------------------------------------------------ flow
@@ -364,6 +385,7 @@ export class Game {
     const input = this.input;
     input.enabled = this.phase === 'ride' && !this.paused && !this.opts.autopilot;
     input.update(dt, this.time);
+    if (this.stereoPanel.open) { input.endFrame(); return; }
     this.handleKeys();
     if (this.paused) {
       input.endFrame();

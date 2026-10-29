@@ -50,6 +50,8 @@ Use [README.md](README.md) for commands and PowerShell environment-variable exam
 | Course, collision, physics, fall detection, or shark | lint, build, `npm run sim`, `npm run test:gameplay`, and screenshots for affected routes |
 | Width, materials, lighting, or post-processing | lint, build, `npm run sim`, `npm run test:lighting`, and screenshots for changed views, 162 m, backlit sections, and clouds |
 | Input, HUD, camera, or localization | build and relevant browser interaction/screenshots; run `npm run test:i18n` for localization changes and add gameplay regression checks as needed. Validate touch changes on a touch device. |
+| Interleave mapping, view rendering, or calibration | lint, build, `npm run test:interleave`, `npm run test:lighting`, and changed-view screenshots; distinguish GPU mapping tests from physical 3D display acceptance |
+| Stereo calibration panel | build, `npm run test:stereo-panel`, `npm run test:i18n`; run interleave tests when view rendering or calibration changes |
 
 - Run `npm run lint` for TypeScript and tooling scripts (Oxlint). Type correctness is checked separately by `npm run typecheck` / `npm run build`.
 - `.github/workflows/ci.yml` runs lint, type checking, build, and simulation on push and pull request. Update the workflow and this table if validation entry points change.

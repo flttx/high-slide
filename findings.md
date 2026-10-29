@@ -1,11 +1,33 @@
 # 检查与诊断记录
 
+## 3D 调参面板（2026-10-29）
+
+- 新增原生 dialog 调参面板，沿用既有颜色与控件。支持显示模式、单视点、视序反转、pitch/tan/offset、视点数量/跨度/焦平面和单视点分辨率；最新默认标定 10.0298 / 0.27781 保留。
+- 数值显式应用；单视点滑块只调用一次场景渲染，实测 134 draw calls。只改变相机参数时复用映射纹理；标定/输出尺寸变化才重建。GPU 回读验证单视点像素、反转方向、更新后映射均正确。
+- 打开面板冻结游戏；滑行中打开会暂停，关闭后仍在暂停菜单。输入与游戏快捷键隔离，Escape 关闭并返回焦点。暂停/面板期间 resize 主动重绘，避免画布清空后等待游戏恢复。
+- test:stereo-panel 通过：键盘操作、非法值拒绝、草稿不生效、应用、缩减视点后的预览钳制、模式切换保留参数、URL 还原、恢复默认、原生剪贴板复制与拒绝回退、冻结/暂停、中文及 390×844 布局。剪贴板测试需显式授予 Chrome sanitized-write；第一次权限配置缺失引起测试超时，补齐权限后通过，产品无此改动。
+- lint、build、sim、interleave、lighting、i18n、gameplay 和 stereo-panel 均已运行通过；校验中 GPU 子像素差异为 0，单视点回调为 1。桌面与窄屏截图位于 tools/shots/stereo-panel-*.png 并已检查；窄屏布局检查不是触控实机验收。
+- Impeccable 检测报告既有渐变标题、泛光阴影和低对比度警告；新面板应用按钮单独改为高对比色，未修改无关旧界面。未将检测器报告称为全项目通过。目标裸眼屏深度/串扰和真实移动触控仍待验收。
+
+## 裸眼 3D 交织（2026-10-29）
+
+- 参考文件 E:/Projects/interleaveV2.py：pitch=10.003640、slant=0.276441、cnt=24、offset=-1.5；坐标原点在左上，x 反转、RGB 通道采用 2-channel 相位。
+- 用户随后指定当前默认标定为 lensPitch=10.0298、lensTan=0.27781（对应 pitch / slant）；Python 基准函数使用新参数重新生成三个尺寸的哈希，参考脚本原文件保持不变。
+- 原渲染链为 RenderPass → 限幅 Bloom → FinalShader → OutputPass。交织放在每视点 OutputPass 之后；最终交织不再经过模糊、色差或色调映射。
+- 每视点默认 1/4 宽高，24 视点合计 1.5 倍输出像素，独立 atlas 避免保存 24 张全尺寸 HDR 图；CPU 双精度相位表仅在分辨率变化时计算。真实几何仍提交 24 次，不能仅凭像素预算承诺帧率。
+- 既有未跟踪 pnpm-lock.yaml 保留，未更改。
+- 最终验证：lint、build、sim、gameplay、lighting、i18n、interleave 通过。新增脚本对照 Python 导出的三个完整映射 SHA-256，并在 GPU 回读验证 RGB、纵轴、视序、DPR=2 和焦平面；不是只验证 JS 自身公式。
+- HiDPI 审查发现 renderer.setViewport 会再乘 DPR，atlas 改用 renderTarget.viewport 的物理像素坐标；DPR=2 的 GPU 像素对照零差异。键盘测试发现 Space 被 Input 捕获，现由聚焦按钮处理 Enter / Space，避免同时触发游戏快捷键。
+- RTX 3050 / headless Chrome / D3D11，1920×1200、起点固定视角、24 视点 / 0.25 scale：交织 80 个有效 rAF 间隔中位数 16.7 ms、P95 33.4 ms，普通模式 16.7 / 16.8 ms；交织每帧约 2737 draw calls、2499 万三角形。输出 tools/shots/interleave-performance.json；这是固定视角短采样，不是全程帧率或裸眼屏验收。
+- 检查普通与交织的 162 / 820 / 1620 m 截图；普通光照六高度峰值均 <=1.01，前景泛光增亮 2.16/255。游戏普通路线 158.7 s、捷径 128.0 s 通关，高中低坠落、暂停、复活和 GLB/回退鲨鱼对齐通过。
+
 # 国际化（2026-09-28）
 - 静态 HTML 原本将中文直接写入菜单与 HUD，运行时中文还分布在加载、坠落、检查点、结算与 reticle 文案中。单独翻译入口不能覆盖动态文本，因此统一放入 `src/i18n.ts`，HTML 用 `data-i18n`。
 - 未设置偏好时固定默认英语，不依赖浏览器系统语言；显式中文偏好保存为 `high-slide.language`。localStorage 不可用时仍在当前会话切换。
 - 语言按钮固定在视口右上角，开始加载前即可切换；单一入口不属于弹窗的焦点循环。动态 HUD 与结算统计在切换时重绘。
 - 用户要求 README.md 与 AGENTS.md 使用英文；此项仅针对这两份项目入口文档，内部历史进度记录仍可使用中文。
 - 验证通过：lint、typecheck、build、sim；`PORT=5174` 下 i18n、gameplay、lighting 浏览器回归通过。i18n 检查确认英语默认、中文切换、HUD 本地化、选择持久化、固定定位和无浏览器错误。
+
 
 ## lint 与 CI（2026-09-28）
 - TypeScript 当前为 7.0.2，而 `typescript-eslint@8.70.1` peer 范围为 `>=4.8.4 <6.1.0`。未强制安装不兼容 parser，也未降级项目编译器；采用支持 TypeScript 的 Oxlint 1.85.0。

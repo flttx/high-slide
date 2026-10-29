@@ -4,6 +4,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { Interleave, interleaveParams, readInterleaveConfig } from './interleave.ts';
+import type { InterleaveConfig } from './interleave.ts';
 
 /** Tunables driven by the game every frame (all 0..1 unless noted). */
 export interface FxParams {
@@ -103,12 +105,43 @@ export class PostFX {
   readonly params: FxParams;
   private readonly final: ShaderPass;
   private readonly bloom: UnrealBloomPass;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly scenePass: RenderPass;
+  private interleave: Interleave | null = null;
+  private config = readInterleaveConfig(new URLSearchParams(location.search));
+  private preview = -1;
+
+  get interleaveConfig(): InterleaveConfig { return { ...this.config }; }
+  get previewView(): number { return this.preview; }
+
+  setInterleaveConfig(config: InterleaveConfig): void {
+    this.config = readInterleaveConfig(interleaveParams(config));
+    this.interleave?.updateConfig(this.config);
+    this.setPreviewView(this.preview);
+  }
+
+  setPreviewView(index: number): void {
+    this.preview = Number.isInteger(index) && index >= 0 ? Math.min(index, this.config.views - 1) : -1;
+  }
+
+  get interleaved(): boolean { return this.interleave !== null; }
+
+  setInterleaved(enabled: boolean): void {
+    if (enabled === this.interleaved) return;
+    this.interleave?.dispose();
+    this.interleave = enabled ? new Interleave(this.renderer, this.config) : null;
+    this.preview = -1;
+  }
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+    this.renderer = renderer;
+    this.camera = camera;
     const size = renderer.getSize(new THREE.Vector2());
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(renderer, rt);
-    this.composer.addPass(new RenderPass(scene, camera));
+    this.scenePass = new RenderPass(scene, camera);
+    this.composer.addPass(this.scenePass);
     // Ordinary sunlit slide panels should retain detail; reserve bloom for lights and glints.
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.12, 0.4, 1.6);
     // Bound only the bloom source: the HDR sun/reflections must not spread a white veil
@@ -145,7 +178,10 @@ export class PostFX {
   }
 
   setSize(w: number, h: number): void {
-    this.composer.setSize(w, h);
+    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.interleave?.setSize(size.x, size.y);
+    this.composer.setPixelRatio(this.interleave ? 1 : this.renderer.getPixelRatio());
+    this.composer.setSize(this.interleave?.viewWidth ?? w, this.interleave?.viewHeight ?? h);
     this.bloom.resolution.set(w / 2, h / 2);
     this.final.uniforms.uAspect.value = w / h;
   }
@@ -164,6 +200,25 @@ export class PostFX {
     u.uBlack.value = p.black;
     u.uFlash.value = p.flash;
     u.uGore.value = p.gore;
-    this.composer.render();
+    if (!this.interleave) {
+      this.composer.render();
+      return;
+    }
+    this.composer.renderToScreen = false;
+    const scene = this.scenePass.scene;
+    const matrixAutoUpdate = scene.matrixWorldAutoUpdate;
+    try {
+      this.interleave.render(this.camera, (camera) => {
+        this.scenePass.camera = camera;
+        this.composer.render();
+        // Simulation/animation already advanced once; reuse transforms for the other views.
+        scene.matrixWorldAutoUpdate = false;
+        return this.composer.readBuffer.texture;
+      }, this.preview);
+    } finally {
+      this.scenePass.camera = this.camera;
+      scene.matrixWorldAutoUpdate = matrixAutoUpdate;
+      this.composer.renderToScreen = true;
+    }
   }
 }
